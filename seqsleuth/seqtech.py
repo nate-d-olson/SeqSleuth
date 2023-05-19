@@ -18,16 +18,37 @@ class SeqTech:
 
     def extract_metadata_from_read(self, read_name: str):
         pass
+    
+    def get_metadata_fields(self):
+        pass
 
 
 class OxfordNanopore(SeqTech):
     def __init__(self, fastq_file: FastqFile):
         super().__init__(fastq_file)
         self.earliest_start_date = None
+        self.metadata = {}
 
     def check_read_name_convention(self, read_name):
         pattern = re.compile(
-            "^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12} runid=[0-9a-f]{40} read=\d+ ch=\d+ start_time=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"
+            "^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12} runid=[0-9a-f]{40}.*$"
+        )
+
+        match = pattern.match(read_name) is not None
+        if not match:
+            logger.error(
+                f"Error: Read name '{read_name}' does not match Oxford Nanopore pattern."
+            )
+        return match
+
+class OxfordNanopore(SeqTech):
+    def __init__(self, fastq_file):
+        super().__init__(fastq_file)
+        self.earliest_start_date = None
+
+    def check_read_name_convention(self, read_name):
+        pattern = re.compile(
+            "^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12} runid=[0-9a-f]{40}.*$"
         )
 
         match = pattern.match(read_name) is not None
@@ -38,36 +59,51 @@ class OxfordNanopore(SeqTech):
         return match
 
     def extract_metadata_from_read(self, read_name):
-        if not self.check_read_name_convention(read_name):
-            logger.error(
-                "Read name convention check failed for read id: " + read_name
+        try:
+            if not self.check_read_name_convention(read_name):
+                raise ValueError(
+                    "Read name convention check failed for read id: " + read_name
+                )
+
+            # Extracting metadata from Oxford Nanopore read names:
+            metadata = {}
+            parts = read_name.split()
+
+            # The first field is the runid
+            # metadata["runid"] = parts[1].split("=")[1]
+
+            # Parse additional key-value pairs
+            for pair in parts[1:]:
+                key, value = pair.split("=")
+                if key not in ["read", "ch"]:
+                    metadata[key] = value
+
+            # Parse the start_time and update earliest_start_date if this date is earlier
+            start_time = datetime.strptime(
+                metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
+            if (
+                self.earliest_start_date is None
+                or start_time < self.earliest_start_date
+            ):
+                self.earliest_start_date = start_time
+
+            # Add the earliest_start_date to the metadata
+            metadata["earliest_start_date"] = self.earliest_start_date.strftime(
+                "%Y-%m-%d"
             )
+
+            # Remove the start_time field
+            metadata.pop("start_time", None)
+
+            return metadata
+
+        except ValueError as error:
+            print(error)
             return {}
 
-        # Extracting metadata from Oxford Nanopore read names:
-        metadata = {}
-        parts = read_name.split()
-
-        # The first field is the runid
-        metadata["runid"] = parts[1].split("=")[1]
-
-        # Parse the start_time and update earliest_start_date if this date is earlier
-        start_time = datetime.strptime(
-            parts[4].split("=")[1], "%Y-%m-%dT%H:%M:%SZ"
-        ).date()
-        if (
-            self.earliest_start_date is None
-            or start_time < self.earliest_start_date
-        ):
-            self.earliest_start_date = start_time
-
-        # Add the earliest_start_date to the metadata
-        metadata["earliest_start_date"] = self.earliest_start_date.strftime(
-            "%Y-%m-%d"
-        )
-
-        return metadata
-
+    def get_metadata_fields(self):
+        return ["runid", "earliest_start_date"]
 
 class PacBio(SeqTech):
     def __init__(self, fastq_file: FastqFile):
@@ -106,6 +142,9 @@ class PacBio(SeqTech):
             metadata["read_type"] = "CLR"
 
         return metadata
+
+    def get_metadata_fields(self):
+        return ["movie_name", "read_type"]
 
 
 class Illumina(SeqTech):
@@ -147,15 +186,133 @@ class Illumina(SeqTech):
 
         return metadata
 
+    def get_metadata_fields(self):
+        return ["instrument_id", "run_number", "flow_cell_id", "flow_cell_lane"]
+
+
+class TenXGenomicsLinkedReads(SeqTech):
+    def __init__(self, fastq_file):
+        super().__init__(fastq_file)
+        self.metadata_values = []
+
+    def check_read_name_convention(self, read_name):
+        pattern = re.compile(r"^\S+:\S+:\S+:\S+:\S+:.*$")
+
+        match = pattern.match(read_name) is not None
+        if not match:
+            logger.error(f"Error: Read name '{read_name}' does not match 10X Genomics Linked-Reads pattern.")
+        return match
+
+    def extract_metadata_from_read(self, read_name):
+        if not self.check_read_name_convention(read_name):
+            logger.error("Read name convention check failed for read id: " + read_name)
+            return {}
+
+        # Extracting metadata from 10X Genomics Linked-Reads read names:
+        metadata = {}
+        parts = read_name.split(":")
+
+        # The first field is the sample identifier
+        metadata["sample"] = parts[0]
+
+        # The second field is the library identifier
+        metadata["library"] = parts[1]
+
+        # The fourth field is the set identifier
+        metadata["set"] = parts[3]
+
+        # Append the metadata values to the list
+        self.metadata_values.append(metadata)
+
+        return metadata
+
+    def get_metadata_fields(self):
+        return ["sample", "library", "set"]
+
+    def get_unique_metadata_values(self):
+        # Return the list of unique metadata values
+        unique_values = []
+        for metadata in self.metadata_values:
+            for value in metadata.values():
+                if value not in unique_values:
+                    unique_values.append(value)
+        return unique_values
+
+
+class DovetailSeqTech(SeqTech):
+    def __init__(self, fastq_file):
+        super().__init__(fastq_file)
+        self.metadata = {}
+        self.n_reads = 0
+
+    def check_read_name_convention(self, read_name):
+        # Modify the regular expression pattern to match the specific read name conventions used by Dovetail Genomics
+        pattern = re.compile(r"^(\S+:\S+:\S+:\S+:\S+:\S+:\S+)\s(\d:\S:\d:\S+)$")
+
+        match = pattern.match(read_name) is not None
+        if not match:
+            logger.error(f"Error: Read name '{read_name}' does not match Dovetail Genomics pattern.")
+        return match
+
+    def extract_metadata_from_read(self, read_name):
+        ## Update number of reads
+        self.n_reads = self.n_reads + 1
+        
+        if not self.check_read_name_convention(read_name):
+            logger.error("Read name convention check failed for read id: " + read_name)
+            return {}
+
+        # Extracting metadata from Dovetail Genomics read names:
+        parts = read_name.split(" ")
+
+        # Assuming the first field contains the library identifier and other fields
+        library_info = parts[0].split(":")
+
+        # Assuming the second field contains the read number and other fields
+        read_info = parts[1].split(":")
+
+        ## Extracting library and instrument info
+        for i, field in enumerate(library_info[:5]):
+            field_name = f"Library_Field_{i+1}"
+            if field_name in self.metadata:
+                if field not in self.metadata[field_name]:
+                    self.metadata[field_name].append([field])
+            else:
+                self.metadata[field_name] = [field]
+
+        # Iterate over the read_info fields and extract metadata
+        # for i, field in enumerate(read_info):
+        #     field_name = f"Read_Field_{i+1}"
+        #     if field_name in self.metadata:
+        #         if field not in self.metadata[field_name]:
+        #             self.metadata[field_name].append(field)
+        #     else:
+        #         self.metadata[field_name] = [field]
+
+        return self.metadata
+
+    def get_metadata_fields(self):
+        metadata = list(self.metadata.keys())
+        ## Removing metadata fields with unique values for every read e.g. read number
+        for key, value in metadata:
+            if len(value) == self.n_reads:
+                metadata.pop(key, None)
+        return metadata
+        
+
 
 class SeqTechFactory:
     @staticmethod
-    def get_tech_class(tech_name: str, fastq_file: FastqFile):
+    def get_tech_class(tech_name, fastq_file):
         if tech_name == "Illumina":
             return Illumina(fastq_file)
         elif tech_name == "PacBio":
             return PacBio(fastq_file)
         elif tech_name == "OxfordNanopore":
             return OxfordNanopore(fastq_file)
+        elif tech_name == "10XGenomics":
+            return TenXGenomicsLinkedReads(fastq_file)
+        elif tech_name == "Dovetail":
+            return DovetailSeqTech(fastq_file)
         else:
-            raise ValueError(f"Unrecognized technology: {tech_name}")
+            raise ValueError(f"No method implemented to extract metadata from {tech_name}")
