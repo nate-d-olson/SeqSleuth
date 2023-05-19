@@ -1,0 +1,23 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Replace with the desired Python version
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt  # If you have any additional dependencies, list them in a requirements.txt file
+
+      - name: Run tests
+        run: pytest
+
