@@ -1,0 +1,10 @@
+https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/HG004_HiSeq300x_fastq/140818_D00360_0047_BHA66FADXX/Project_RM8392/Sample_4F2/4F2_GCCAAT_L001_R1_006.fastq.gz
+https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_Stanford_Moleculo/basespace_125bps_fastqs/LTB-D-BC136-22991260/LTB-D-BC136_S1288_L008_R2_001.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/10Xgenomics_ChromiumGenome/NA24385.fastqs/read-I1_si-AAGTTGCA_lane-001-chunk-0002.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/BGISEQ500/BGISEQ500_PCRfree_NA24385_CL100076190_L01_read_2.fq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/Dovetail_ChicagoLibraties/CP-468_S4_R1_001_1.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/Dovetail_ChicagoLibraties/CP-468_S4_R1_001_2.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_Illumina_2x250bps/reads/D1_S1_L001_R1_001.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/PacBio_CCS_10kb/m54238_180628_014238.Q20.fastq
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/PacBio_CCS_15kb_20kb_chemistry2/reads/m64011_190830_220126.fastq.gz
+https://42basepairs.com/download/web/giab/data/AshkenazimTrio/HG002_NA24385_son/UCSC_Ultralong_OxfordNanopore_Promethion/GM24385_1.fastq.gz
