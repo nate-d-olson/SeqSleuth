@@ -32,7 +32,6 @@ from urllib.parse import urlparse
 from predict_tech_from_fastq import (
     FastqRecordReader,
     FastqFile,
-    TechnologyPredictor,
     predict_sequencing_tech,
 )
 from extract_metadata import MetadataExtractor
@@ -74,6 +73,14 @@ def main(fastq_files, args):
                 }
             )
 
+def validate_num_reads(value):
+    ivalue = int(value)
+    if ivalue <= -2 or ivalue == 0:
+        raise argparse.ArgumentTypeError(
+            "Please provide a number greater than 0 for the number of reads " +
+            "to analyze, or -1 to analyze all"
+        )
+    return ivalue
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -88,7 +95,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--num_reads",
-        type=int,
+        type=validate_num_reads,
         default=5,
         help="Number of reads to process. Defaults to 5. Set to -1 to process all reads.",
     )
@@ -117,9 +124,7 @@ if __name__ == "__main__":
                     "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
                 )
         else:  # This is a local file
-            if not os.path.exists(file):
-                parser.error(f"The file {file} does not exist!")
-            elif (
+            if (
                 not file.endswith(".fastq")
                 and not file.endswith(".fastq.gz")
                 and not file.endswith(".fq")
@@ -129,12 +134,7 @@ if __name__ == "__main__":
                     f"The file {file} is not a fastq file based on file extension! "
                     "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
                 )
-
-    # Check if chunk size is reasonable
-    if args.num_reads <= -2 or args.num_reads == 0:
-        parser.error(
-            "Please provide a number greater than 0 for the number of reads " + 
-            "analyze, or -1 to analyze all"
-        )
+            elif not os.path.exists(file):
+                parser.error(f"The file {file} does not exist!")
 
     main(fastq_files, args)
