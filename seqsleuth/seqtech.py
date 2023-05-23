@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any, Type
 from predict_tech_from_fastq import FastqFile
 from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor
 
 
 @dataclass
@@ -296,3 +297,9 @@ class SeqTechFactory:
                 f"An error occurred while attempting to create an instance of {seqtech_class.__name__}: {str(e)}"
             )
             return UnknownSeqTech(self.read_names)
+
+    def extract_metadata_in_parallel(self, seqtech_instance, n_workers):
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            metadata_list = list(executor.map(seqtech_instance.extract_metadata_from_read, self.read_names))
+
+        return metadata_list
