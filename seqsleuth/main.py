@@ -28,6 +28,7 @@ import json
 import csv
 import os
 import re
+import multiprocessing
 from urllib.parse import urlparse
 from predict_tech_from_fastq import (
     FastqRecordReader,
@@ -59,7 +60,7 @@ def main(fastq_files, args):
                 metadata = {"Warning": "Unknown technology."}
             else:
                 extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
-                metadata = extractor.extract_metadata()
+                metadata = extractor.extract_metadata(n_workers = args.workers)
 
             if args.verbose:
                 print(f"metadata extracted for {filename}: {metadata}")
@@ -82,6 +83,15 @@ def validate_num_reads(value):
         )
     return ivalue
 
+def validate_workers(value):
+    if value == "all":
+        return multiprocessing.cpu_count()
+    else:
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError("Number of workers must be greater than 0, or 'all' to use all CPU cores.")
+        return ivalue
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Predict the technology and extract metadata from fastq files."
@@ -98,6 +108,12 @@ if __name__ == "__main__":
         type=validate_num_reads,
         default=5,
         help="Number of reads to process. Defaults to 5. Set to -1 to process all reads.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=validate_workers,
+        default=1,
+        help="Number of worker threads. Defaults to 1. Set to 'all' to use all CPU cores.",
     )
     parser.add_argument(
         "--output", type=str, default="output.csv", help="Output CSV file."
