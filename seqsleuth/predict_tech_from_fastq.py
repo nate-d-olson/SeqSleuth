@@ -2,31 +2,30 @@ import pysam
 
 
 class FastqRecordReader:
-    def __init__(self, filename, chunk_size):
+    def __init__(self, filename, num_reads):
         self.filename = filename
-        self.chunk_size = chunk_size
+        self.num_reads = num_reads
 
-
-def read_records(self):
-    """Yield records one by one until chunk size is reached"""
-    size = 0
-    tries = 3
-    while tries > 0:
-        try:
-            with pysam.FastxFile(self.filename, "fastq") as fh:
-                for record in fh:
-                    yield record
-                    size += len(record.sequence)
-                    if size >= self.chunk_size:
-                        break
-            break  # If the file read is successful, break the retry loop.
-        except Exception as e:
-            tries -= 1
-            if tries > 0:
-                print(f"Error reading file, retrying... ({3 - tries} attempts left)")
-            else:
-                print(f"Error reading file, no attempts left. Exception: {e}")
-                raise e
+    def read_records(self):
+        """Yield records one by one until chunk size is reached"""
+        tries = 3
+        while tries > 0:
+            count = 0
+            try:
+                with pysam.FastxFile(self.filename, "fastq") as fh:
+                    for record in fh:
+                        yield record
+                        count += 1
+                        if self.num_reads != -1 and count >= self.num_reads:
+                            break
+                return record
+            except Exception as e:
+                tries -= 1
+                if tries > 0:
+                    print(f"Error reading file, retrying... ({3 - tries} attempts left)")
+                else:
+                    print(f"Error reading file, no attempts left. Exception: {e}")
+                    raise e
 
 
 class TechnologyPredictor:
@@ -112,11 +111,10 @@ class FastqFile:
             return "Unknown"
 
 
-def predict_sequencing_tech(filename, chunk_size=1e9):
+def predict_sequencing_tech(filename, num_reads = 5):
     try:
-        reader = FastqRecordReader(filename, chunk_size)
+        reader = FastqRecordReader(filename, num_reads)
         fastq_file = FastqFile(reader, filename)
-        # tech_predictor = TechnologyPredictor(reader)
     except IOError as e:
         raise IOError(f"Error initializing FastqFile: {e}")
 

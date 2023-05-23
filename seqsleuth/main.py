@@ -48,10 +48,10 @@ def main(fastq_files, args):
         # Iterate over fastq files
         for filename in fastq_files:
             ## Initialize FastqRecordReader and predict sequencing technology
-            reader = FastqRecordReader(filename, args.chunk_size * 1e9)
+            reader = FastqRecordReader(filename, args.num_reads)
             fastq_file = FastqFile(reader, filename)
 
-            predicted_tech = predict_sequencing_tech(filename, args.chunk_size * 1e9)
+            predicted_tech = predict_sequencing_tech(filename, args.num_reads)
             if args.verbose:
                 print(f"Predicted technology for {filename}: {predicted_tech}")
 
@@ -87,10 +87,10 @@ if __name__ == "__main__":
         help="A file containing a list of fastq files, one per line.",
     )
     parser.add_argument(
-        "--chunk_size",
-        type=float,
-        default=1,
-        help="Size of file chunk to read (in GB).",
+        "--num_reads",
+        type=int,
+        default=5,
+        help="Number of reads to process. Defaults to 5. Set to -1 to process all reads.",
     )
     parser.add_argument(
         "--output", type=str, default="output.csv", help="Output CSV file."
@@ -131,7 +131,10 @@ if __name__ == "__main__":
                 )
 
     # Check if chunk size is reasonable
-    if args.chunk_size <= 0 or args.chunk_size > 100:
-        parser.error("Please provide a chunk size between 0 and 100 GB.")
+    if args.num_reads <= -2 or args.num_reads == 0:
+        parser.error(
+            "Please provide a number greater than 0 for the number of reads " + 
+            "analyze, or -1 to analyze all"
+        )
 
     main(fastq_files, args)
