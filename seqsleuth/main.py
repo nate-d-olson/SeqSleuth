@@ -28,6 +28,8 @@ import json
 import csv
 import os
 import re
+import logging
+import sys
 import multiprocessing
 from urllib.parse import urlparse
 from predict_tech_from_fastq import (
@@ -36,6 +38,16 @@ from predict_tech_from_fastq import (
     predict_sequencing_tech,
 )
 from extract_metadata import MetadataExtractor
+
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ],
+)
 
 
 def main(fastq_files, args):
@@ -55,8 +67,7 @@ def main(fastq_files, args):
             fastq_file = FastqFile(reader, filename)
 
             predicted_tech = predict_sequencing_tech(filename, args.num_reads)
-            if args.verbose:
-                print(f"Predicted technology for {filename}: {predicted_tech}")
+            logging.debug(f"Predicted technology for {filename}: {predicted_tech}")
 
             # Extract metadata
             if predicted_tech == "Unknown":
@@ -65,8 +76,7 @@ def main(fastq_files, args):
                 extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
                 metadata = extractor.extract_metadata(n_workers=args.workers)
 
-            if args.verbose:
-                print(f"metadata extracted for {filename}: {metadata}")
+            logging.debug(f"Metadata extracted for {filename}: {metadata}")
 
             # Write to CSV
             writer.writerow(
@@ -135,6 +145,10 @@ if __name__ == "__main__":
 
     # Parse arguments
     args = parser.parse_args()
+
+    # Change level to DEBUG if verbose
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # Handle fastq_files or file_list arguments
     if args.file_list:
