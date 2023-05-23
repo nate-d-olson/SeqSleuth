@@ -67,7 +67,7 @@ class PacBio(SeqTech):
     pacbio_pattern_clr: re.Pattern = re.compile(
         "^m\d+_\d+_\d+_c\d+_s\d+_p\d+/\d+/\d+_\d+$"
     )
-    pacbio_pattern_ccs: re.Pattern = re.compile("^m\d+_\d+_\d+\d+/\d+/ccs$")
+    pacbio_pattern_ccs: re.Pattern = re.compile("^m\d+_\d+_\d+\d+/\d+/ccs")
 
     def check_read_name_convention(self, read_name: str) -> bool:
         match = (
