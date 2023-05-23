@@ -5,6 +5,7 @@ from typing import Optional, Dict, List, Any, Type
 from predict_tech_from_fastq import FastqFile
 from datetime import datetime
 
+
 @dataclass
 class SeqTech:
     read_names: List[str]
@@ -12,6 +13,7 @@ class SeqTech:
 
     def __post_init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
+
     def check_read_name_convention(self, read_name: str) -> bool:
         raise NotImplementedError()
 
@@ -21,20 +23,27 @@ class SeqTech:
     def get_metadata_fields(self) -> List[str]:
         raise NotImplementedError()
 
+
 @dataclass
 class Illumina(SeqTech):
     read_names: List[str]
-    illumina_pattern: re.Pattern = re.compile("^[\w-]+:\d+:[\w-]+:\d+:\d+:\d+:\d+\s[12]:[YN]:\d+:[ATCGN+]+$")
+    illumina_pattern: re.Pattern = re.compile(
+        "^[\w-]+:\d+:[\w-]+:\d+:\d+:\d+:\d+\s[12]:[YN]:\d+:[ATCGN+]+$"
+    )
 
     def check_read_name_convention(self, read_name: str) -> bool:
         match = self.illumina_pattern.match(read_name) is not None
         if not match:
-            self.logger.error(f"Error: Read name '{read_name}' does not match Illumina pattern.")
+            self.logger.error(
+                f"Error: Read name '{read_name}' does not match Illumina pattern."
+            )
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
         if not self.check_read_name_convention(read_name):
-            self.logger.error("Read name convention check failed for read id: " + read_name)
+            self.logger.error(
+                "Read name convention check failed for read id: " + read_name
+            )
             return {}
 
         metadata = {}
@@ -50,16 +59,24 @@ class Illumina(SeqTech):
     def get_metadata_fields(self) -> List[str]:
         return ["instrument_id", "run_number", "flow_cell_id", "flow_cell_lane"]
 
+
 @dataclass
 class PacBio(SeqTech):
     read_names: List[str]
-    pacbio_pattern_clr: re.Pattern = re.compile("^m\d+_\d+_\d+_c\d+_s\d+_p\d+/\d+/\d+_\d+$")
+    pacbio_pattern_clr: re.Pattern = re.compile(
+        "^m\d+_\d+_\d+_c\d+_s\d+_p\d+/\d+/\d+_\d+$"
+    )
     pacbio_pattern_ccs: re.Pattern = re.compile("^m\d+_\d+_\d+\d+/\d+/ccs$")
 
     def check_read_name_convention(self, read_name: str) -> bool:
-        match = self.pacbio_pattern_clr.match(read_name) is not None or self.pacbio_pattern_ccs.match(read_name) is not None
+        match = (
+            self.pacbio_pattern_clr.match(read_name) is not None
+            or self.pacbio_pattern_ccs.match(read_name) is not None
+        )
         if not match:
-            self.logger.error(f"Error: Read name '{read_name}' does not match PacBio pattern.")
+            self.logger.error(
+                f"Error: Read name '{read_name}' does not match PacBio pattern."
+            )
         return match
 
     def extract_metadata_from_read(self, read_name):
@@ -108,7 +125,9 @@ class OxfordNanopore(SeqTech):
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
         if not self.check_read_name_convention(read_name):
-            self.logger.error("Read name convention check failed for read id: " + read_name)
+            self.logger.error(
+                "Read name convention check failed for read id: " + read_name
+            )
             return {}
 
         parts = read_name.split()
@@ -117,17 +136,22 @@ class OxfordNanopore(SeqTech):
             if key not in ["read", "ch"]:
                 self.metadata[key] = value
 
-        start_time = datetime.strptime(self.metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ").date()
+        start_time = datetime.strptime(
+            self.metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
         if self.earliest_start_date is None or start_time < self.earliest_start_date:
             self.earliest_start_date = start_time
 
-        self.metadata["earliest_start_date"] = self.earliest_start_date.strftime("%Y-%m-%d")
+        self.metadata["earliest_start_date"] = self.earliest_start_date.strftime(
+            "%Y-%m-%d"
+        )
         self.metadata.pop("start_time", None)
 
         return self.metadata
 
     def get_metadata_fields(self) -> List[str]:
         return list(self.metadata.keys())
+
 
 @dataclass
 class TenXGenomicsLinkedReads(SeqTech):
@@ -138,12 +162,16 @@ class TenXGenomicsLinkedReads(SeqTech):
     def check_read_name_convention(self, read_name: str) -> bool:
         match = self.linkedreads_pattern.match(read_name) is not None
         if not match:
-            self.logger.error(f"Error: Read name '{read_name}' does not match 10X Genomics Linked-Reads pattern.")
+            self.logger.error(
+                f"Error: Read name '{read_name}' does not match 10X Genomics Linked-Reads pattern."
+            )
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
         if not self.check_read_name_convention(read_name):
-            self.logger.error("Read name convention check failed for read id: " + read_name)
+            self.logger.error(
+                "Read name convention check failed for read id: " + read_name
+            )
             return {}
 
         # Extracting metadata from 10X Genomics Linked-Reads read names:
@@ -167,22 +195,29 @@ class TenXGenomicsLinkedReads(SeqTech):
     def get_metadata_fields(self) -> List[str]:
         return ["sample", "library", "set"]
 
+
 @dataclass
 class DovetailSeqTech(SeqTech):
     read_names: List[str]
-    dovetail_pattern: re.Pattern = re.compile(r"^(\S+:\S+:\S+:\S+:\S+:\S+:\S+)\s(\d:\S:\d:\S+)$")
+    dovetail_pattern: re.Pattern = re.compile(
+        r"^(\S+:\S+:\S+:\S+:\S+:\S+:\S+)\s(\d:\S:\d:\S+)$"
+    )
     metadata: Dict[str, List[str]] = field(default_factory=dict)
     n_reads: int = 0
 
     def check_read_name_convention(self, read_name: str) -> bool:
         match = self.dovetail_pattern.match(read_name) is not None
         if not match:
-            self.logger.error(f"Error: Read name '{read_name}' does not match Dovetail Genomics pattern.")
+            self.logger.error(
+                f"Error: Read name '{read_name}' does not match Dovetail Genomics pattern."
+            )
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, List[str]]:
         if not self.check_read_name_convention(read_name):
-            self.logger.error("Read name convention check failed for read id: " + read_name)
+            self.logger.error(
+                "Read name convention check failed for read id: " + read_name
+            )
             return {}
 
         # Extracting metadata from Dovetail Genomics read names:
@@ -202,6 +237,7 @@ class DovetailSeqTech(SeqTech):
     def get_metadata_fields(self) -> List[str]:
         return list(self.metadata.keys())
 
+
 @dataclass
 class OtherSeqTech(SeqTech):
     def check_read_name_convention(self, read_name: str) -> bool:
@@ -210,28 +246,31 @@ class OtherSeqTech(SeqTech):
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, Any]:
         # Returns the desired dictionary format as metadata
-        return {'tech': 'unimplemented parser', 'read_names': read_name}
+        return {"tech": "unimplemented parser", "read_names": read_name}
 
     def get_metadata_fields(self) -> List[str]:
         # If required, you can list the fields that this class will return in metadata
-        return ['tech', 'read_names']
+        return ["tech", "read_names"]
 
 
 @dataclass
 class UnknownSeqTech(SeqTech):
     read_names: List[str]
-    tech: str = 'Unknown'
-    read_name_regex: str = r'.*'
+    tech: str = "Unknown"
+    read_name_regex: str = r".*"
     read_name_pattern: Any = field(init=False, repr=False)
 
     def __post_init__(self):
         self.read_name_pattern = re.compile(self.read_name_regex)
 
     def format_reads(self):
-        return { 'tech' : self.tech, 'read_names' : self.read_names }
+        return {"tech": self.tech, "read_names": self.read_names}
+
 
 class SeqTechFactory:
-    def __init__(self, predicted_tech: str, read_names: List[str], logging_level: str = 'INFO'):
+    def __init__(
+        self, predicted_tech: str, read_names: List[str], logging_level: str = "INFO"
+    ):
         self.predicted_tech = predicted_tech
         self.read_names = read_names
         self.logger = logging.getLogger(__name__)
@@ -244,7 +283,7 @@ class SeqTechFactory:
             "10XGenomics": TenXGenomicsLinkedReads,
             "Dovetail": DovetailSeqTech,
             "Unknown": UnknownSeqTech,
-            "Other": OtherSeqTech
+            "Other": OtherSeqTech,
         }
 
     def create(self) -> SeqTech:
@@ -253,5 +292,7 @@ class SeqTechFactory:
             instance = seqtech_class(self.read_names)
             return instance
         except Exception as e:
-            self.logger.error(f"An error occurred while attempting to create an instance of {seqtech_class.__name__}: {str(e)}")
+            self.logger.error(
+                f"An error occurred while attempting to create an instance of {seqtech_class.__name__}: {str(e)}"
+            )
             return UnknownSeqTech(self.read_names)

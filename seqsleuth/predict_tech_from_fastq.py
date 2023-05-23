@@ -1,9 +1,11 @@
 import pysam
 
+
 class FastqRecordReader:
     def __init__(self, filename, chunk_size):
         self.filename = filename
         self.chunk_size = chunk_size
+
 
 def read_records(self):
     """Yield records one by one until chunk size is reached"""
@@ -25,6 +27,7 @@ def read_records(self):
             else:
                 print(f"Error reading file, no attempts left. Exception: {e}")
                 raise e
+
 
 class TechnologyPredictor:
     def __init__(self, reader):
@@ -52,7 +55,7 @@ class FastqFile:
         self.reader = reader
         self.filename = filename
         self.read_names = self._get_read_names()
-    
+
     def _get_read_names(self):
         print("Getting read names from " + self.filename)
         read_names = []
@@ -67,11 +70,28 @@ class FastqFile:
     def predict_technology_based_on_filename(self):
         try:
             filename_lower = self.filename.lower()
-            if any(substring in filename_lower for substring in ["illumina", "ilum", "nextseq", "hiseq", "miseq", "novaseq", "ill"]):
+            if any(
+                substring in filename_lower
+                for substring in [
+                    "illumina",
+                    "ilum",
+                    "nextseq",
+                    "hiseq",
+                    "miseq",
+                    "novaseq",
+                    "ill",
+                ]
+            ):
                 return "Illumina"
-            elif any(substring in filename_lower for substring in ["pacbio", "pb", "sequel", "smrt"]):
+            elif any(
+                substring in filename_lower
+                for substring in ["pacbio", "pb", "sequel", "smrt"]
+            ):
                 return "PacBio"
-            elif any(substring in filename_lower for substring in ["nanopore", "ont", "minion", "promethion"]):
+            elif any(
+                substring in filename_lower
+                for substring in ["nanopore", "ont", "minion", "promethion"]
+            ):
                 return "OxfordNanopore"
             elif any(substring in filename_lower for substring in ["bgi"]):
                 return "BGI"
@@ -91,6 +111,7 @@ class FastqFile:
             print(f"Error predicting technology based on filename: {e}")
             return "Unknown"
 
+
 def predict_sequencing_tech(filename, chunk_size=1e9):
     try:
         reader = FastqRecordReader(filename, chunk_size)
@@ -99,31 +120,10 @@ def predict_sequencing_tech(filename, chunk_size=1e9):
     except IOError as e:
         raise IOError(f"Error initializing FastqFile: {e}")
 
-    # try:
-    #     short_read = tech_predictor.is_short_read_technology()
-    # except ValueError as e:
-    #     raise ValueError(f"Error determining if short read technology: {e}")
-
     try:
         tech_from_filepath = fastq_file.predict_technology_based_on_filename()
         print(f"tech from filepath: {tech_from_filepath}")
     except Exception as e:
         return f"Error predicting technology based on filename: {e}"
-
-    # if tech_from_filepath != "Unknown":
-    #     if (short_read and tech_from_filepath == "Illumina") or (
-    #         not short_read and tech_from_filepath in ["PacBio", "OxfordNanopore"]
-    #     ):
-    #         return tech_from_filepath
-    #     else:
-    #         return f"Inconsistent read length and technology detected in filepath: {tech_from_filepath}"
-
-    # try:
-    #     tech_from_read_names = tech_predictor.predict_technology_based_on_read_names()
-    # except Exception as e:
-    #     return f"Error predicting technology based on read names: {e}"
-
-    # if tech_from_read_names != "Unknown":
-    #     return tech_from_read_names
 
     return tech_from_filepath

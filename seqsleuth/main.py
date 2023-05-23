@@ -29,7 +29,12 @@ import csv
 import os
 import re
 from urllib.parse import urlparse
-from predict_tech_from_fastq import FastqRecordReader, FastqFile, TechnologyPredictor, predict_sequencing_tech
+from predict_tech_from_fastq import (
+    FastqRecordReader,
+    FastqFile,
+    TechnologyPredictor,
+    predict_sequencing_tech,
+)
 from extract_metadata import MetadataExtractor
 
 
@@ -77,9 +82,9 @@ if __name__ == "__main__":
 
     parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
     parser.add_argument(
-        "--file_list", 
-        type=str, 
-        help="A file containing a list of fastq files, one per line."
+        "--file_list",
+        type=str,
+        help="A file containing a list of fastq files, one per line.",
     )
     parser.add_argument(
         "--chunk_size",
@@ -97,7 +102,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.file_list:
-        with open(args.file_list, 'r') as f:
+        with open(args.file_list, "r") as f:
             fastq_files = [line.strip() for line in f]
     else:
         fastq_files = args.fastq_files
