@@ -5,16 +5,26 @@ class FastqRecordReader:
         self.filename = filename
         self.chunk_size = chunk_size
 
-    def read_records(self):
-        """Yield records one by one until chunk size is reached"""
-        size = 0
-        with pysam.FastxFile(self.filename, "fastq") as fh:
-            for record in fh:
-                yield record
-                size += len(record.sequence)
-                if size >= self.chunk_size:
-                    break
-
+def read_records(self):
+    """Yield records one by one until chunk size is reached"""
+    size = 0
+    tries = 3
+    while tries > 0:
+        try:
+            with pysam.FastxFile(self.filename, "fastq") as fh:
+                for record in fh:
+                    yield record
+                    size += len(record.sequence)
+                    if size >= self.chunk_size:
+                        break
+            break  # If the file read is successful, break the retry loop.
+        except Exception as e:
+            tries -= 1
+            if tries > 0:
+                print(f"Error reading file, retrying... ({3 - tries} attempts left)")
+            else:
+                print(f"Error reading file, no attempts left. Exception: {e}")
+                raise e
 
 class TechnologyPredictor:
     def __init__(self, reader):
