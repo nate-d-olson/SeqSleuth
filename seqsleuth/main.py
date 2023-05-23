@@ -2,17 +2,17 @@
 Metadata Extraction from FASTQ files
 
 This script allows the user to predict the sequencing technology and extract metadata from FASTQ files. 
-The user can specify a list of FASTQ files as arguments. The chunk size for reading the file and the 
-output file name for the CSV output can also be specified. If not provided, the chunk size defaults to 
-1 GB and the output file name defaults to 'output.csv'.
+The user can specify a list of FASTQ files as arguments. The output file name for the CSV output can also be specified. 
+If not provided, the output file name defaults to 'output.csv'.
 
-Usage: python main.py <FASTQ_files> [--chunk_size] [--output] [--verbose]
+Usage: python main.py <FASTQ_files> [--num_reads] [--output] [--verbose] [--workers]
 
 Required arguments:
     <FASTQ_files>: List of FASTQ files.
 
 Optional arguments:
-    --chunk_size: Size of file chunk to read (in GB). Default is 1.
+    --num_reads: Number of reads to process. Default is 5. Set to -1 to process all reads.
+    --workers: Number of worker threads. Default is 1. Set to 'all' to use all CPU cores.
     --output: Output CSV file. Default is 'output.csv'.
     --verbose: If set, the script will print detailed messages.
 
@@ -39,7 +39,10 @@ from extract_metadata import MetadataExtractor
 
 
 def main(fastq_files, args):
-    ## Output CSV file
+    """
+    Main function that processes each FASTQ file and extracts metadata.
+    """
+    # Initialize CSV file for writing results
     with open(args.output, "w", newline="") as csvfile:
         fieldnames = ["filename", "predicted_tech", "metadata"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -47,7 +50,7 @@ def main(fastq_files, args):
 
         # Iterate over fastq files
         for filename in fastq_files:
-            ## Initialize FastqRecordReader and predict sequencing technology
+            # Initialize FastqRecordReader and predict sequencing technology
             reader = FastqRecordReader(filename, args.num_reads)
             fastq_file = FastqFile(reader, filename)
 
@@ -55,17 +58,17 @@ def main(fastq_files, args):
             if args.verbose:
                 print(f"Predicted technology for {filename}: {predicted_tech}")
 
-            ## Extract metadata
+            # Extract metadata
             if predicted_tech == "Unknown":
                 metadata = {"Warning": "Unknown technology."}
             else:
                 extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
-                metadata = extractor.extract_metadata(n_workers = args.workers)
+                metadata = extractor.extract_metadata(n_workers=args.workers)
 
             if args.verbose:
                 print(f"metadata extracted for {filename}: {metadata}")
 
-            ## Write to CSV
+            # Write to CSV
             writer.writerow(
                 {
                     "filename": filename,
@@ -74,35 +77,43 @@ def main(fastq_files, args):
                 }
             )
 
+
 def validate_num_reads(value):
+    """
+    Validate num_reads argument.
+    """
     ivalue = int(value)
     if ivalue <= -2 or ivalue == 0:
         raise argparse.ArgumentTypeError(
-            "Please provide a number greater than 0 for the number of reads " +
-            "to analyze, or -1 to analyze all"
+            "Please provide a number greater than 0 for the number of reads "
+            + "to analyze, or -1 to analyze all"
         )
     return ivalue
 
+
 def validate_workers(value):
+    """
+    Validate workers argument.
+    """
     if value == "all":
         return multiprocessing.cpu_count()
     else:
         ivalue = int(value)
         if ivalue <= 0:
-            raise argparse.ArgumentTypeError("Number of workers must be greater than 0, or 'all' to use all CPU cores.")
+            raise argparse.ArgumentTypeError(
+                "Number of workers must be greater than 0, or 'all' to use all CPU cores."
+            )
         return ivalue
 
+
 if __name__ == "__main__":
+    # Initialize argument parser
     parser = argparse.ArgumentParser(
         description="Predict the technology and extract metadata from fastq files."
     )
 
+    # Define arguments
     parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
-    parser.add_argument(
-        "--file_list",
-        type=str,
-        help="A file containing a list of fastq files, one per line.",
-    )
     parser.add_argument(
         "--num_reads",
         type=validate_num_reads,
@@ -122,8 +133,10 @@ if __name__ == "__main__":
         "--verbose", action="store_true", help="Print detailed messages."
     )
 
+    # Parse arguments
     args = parser.parse_args()
 
+    # Handle fastq_files or file_list arguments
     if args.file_list:
         with open(args.file_list, "r") as f:
             fastq_files = [line.strip() for line in f]
@@ -131,7 +144,7 @@ if __name__ == "__main__":
         fastq_files = args.fastq_files
 
     # Check if fastq_files exist and are of correct format (.fastq)
-    for file in args.fastq_files:
+    for file in fastq_files:
         parsed = urlparse(file)
         if bool(parsed.netloc):  # This is a URL
             if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path):
@@ -153,4 +166,5 @@ if __name__ == "__main__":
             elif not os.path.exists(file):
                 parser.error(f"The file {file} does not exist!")
 
+    # Execute main function
     main(fastq_files, args)

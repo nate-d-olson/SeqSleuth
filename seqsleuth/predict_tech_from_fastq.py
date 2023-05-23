@@ -22,7 +22,9 @@ class FastqRecordReader:
             except Exception as e:
                 tries -= 1
                 if tries > 0:
-                    print(f"Error reading file, retrying... ({3 - tries} attempts left)")
+                    print(
+                        f"Error reading file, retrying... ({3 - tries} attempts left)"
+                    )
                 else:
                     print(f"Error reading file, no attempts left. Exception: {e}")
                     raise e
@@ -111,7 +113,7 @@ class FastqFile:
             return "Unknown"
 
 
-def predict_sequencing_tech(filename, num_reads = 5):
+def predict_sequencing_tech(filename, num_reads=5):
     try:
         reader = FastqRecordReader(filename, num_reads)
         fastq_file = FastqFile(reader, filename)

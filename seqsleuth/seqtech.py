@@ -300,6 +300,10 @@ class SeqTechFactory:
 
     def extract_metadata_in_parallel(self, seqtech_instance, n_workers):
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
-            metadata_list = list(executor.map(seqtech_instance.extract_metadata_from_read, self.read_names))
+            metadata_list = list(
+                executor.map(
+                    seqtech_instance.extract_metadata_from_read, self.read_names
+                )
+            )
 
         return metadata_list
