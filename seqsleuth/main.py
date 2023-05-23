@@ -66,6 +66,7 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
         writer.writeheader()
 
         # Create a progress bar
+        logging.info(f"Initiate processing of fastq files")
         pbar = tqdm(total=len(fastq_files), disable=not args.progress)
 
         # Iterate over fastq files
