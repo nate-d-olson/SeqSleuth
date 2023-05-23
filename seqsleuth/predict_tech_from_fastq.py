@@ -18,7 +18,7 @@ class FastqRecordReader:
                         count += 1
                         if self.num_reads != -1 and count >= self.num_reads:
                             break
-                return record
+                break
             except Exception as e:
                 tries -= 1
                 if tries > 0:
