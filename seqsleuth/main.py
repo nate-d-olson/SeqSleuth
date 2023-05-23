@@ -11,10 +11,12 @@ Required arguments:
     <FASTQ_files>: List of FASTQ files.
 
 Optional arguments:
+    --file_list: text file with a list of local file paths or uris for fastq files, assumes one file per row
     --num_reads: Number of reads to process. Default is 5. Set to -1 to process all reads.
     --workers: Number of worker threads. Default is 1. Set to 'all' to use all CPU cores.
     --output: Output CSV file. Default is 'output.csv'.
     --verbose: If set, the script will print detailed messages.
+    --progress: If set, the script will provide a progress bar indicating the number of fastq files analyzed.
 
 Author: ND Olson
 Date: 2023-05-12
@@ -24,21 +26,24 @@ This script was developed with assistance from a conversation with OpenAI's Chat
 """
 
 import argparse
-import json
 import csv
+import json
+import logging
+import multiprocessing
 import os
 import re
-import logging
 import sys
-import multiprocessing
+from tqdm import tqdm
+from typing import List
 from urllib.parse import urlparse
+
+
+from extract_metadata import MetadataExtractor
 from predict_tech_from_fastq import (
-    FastqRecordReader,
     FastqFile,
+    FastqRecordReader,
     predict_sequencing_tech,
 )
-from extract_metadata import MetadataExtractor
-
 
 # Set up logging
 logging.basicConfig(
@@ -50,7 +55,7 @@ logging.basicConfig(
 )
 
 
-def main(fastq_files, args):
+def main(fastq_files: List[str], args: argparse.Namespace) -> None:
     """
     Main function that processes each FASTQ file and extracts metadata.
     """
@@ -59,6 +64,9 @@ def main(fastq_files, args):
         fieldnames = ["filename", "predicted_tech", "metadata"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
+
+        # Create a progress bar
+        pbar = tqdm(total=len(fastq_files), disable=not args.progress)
 
         # Iterate over fastq files
         for filename in fastq_files:
@@ -87,8 +95,14 @@ def main(fastq_files, args):
                 }
             )
 
+            # Update progress bar
+            pbar.update(1)
 
-def validate_num_reads(value):
+        # Close the progress bar
+        pbar.close()
+
+
+def validate_num_reads(value: str) -> int:
     """
     Validate num_reads argument.
     """
@@ -101,7 +115,7 @@ def validate_num_reads(value):
     return ivalue
 
 
-def validate_workers(value):
+def validate_workers(value: str) -> int:
     """
     Validate workers argument.
     """
@@ -125,6 +139,11 @@ if __name__ == "__main__":
     # Define arguments
     parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
     parser.add_argument(
+        "--file_list",
+        type=str,
+        help="A file containing a list of fastq files, one per line.",
+    )
+    parser.add_argument(
         "--num_reads",
         type=validate_num_reads,
         default=5,
@@ -142,6 +161,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed messages."
     )
+    parser.add_argument("--progress", action="store_true", help="Show progress bar.")
 
     # Parse arguments
     args = parser.parse_args()
