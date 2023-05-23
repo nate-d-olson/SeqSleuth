@@ -54,6 +54,28 @@ logging.basicConfig(
     ],
 )
 
+def process_file(filename, num_reads, output_queue):
+    # Initialize FastqRecordReader and predict sequencing technology
+    reader = FastqRecordReader(filename, num_reads)
+    fastq_file = FastqFile(reader, filename)
+
+    predicted_tech = predict_sequencing_tech(filename, num_reads)
+
+    # Extract metadata
+    if predicted_tech == "Unknown":
+        metadata = {"Warning": "Unknown technology."}
+    else:
+        extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
+        metadata = extractor.extract_metadata(n_workers=multiprocessing.cpu_count())
+
+    # Output data to queue
+    output_queue.put(
+        {
+            "filename": filename,
+            "predicted_tech": predicted_tech,
+            "metadata": json.dumps(metadata),
+        }
+    )
 
 def main(fastq_files: List[str], args: argparse.Namespace) -> None:
     """
@@ -65,42 +87,36 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
+        # Initialize a multiprocessing pool
+        pool = multiprocessing.Pool(processes=args.workers)
+
+        # Initialize a manager queue to handle the output
+        manager = multiprocessing.Manager()
+        output_queue = manager.Queue()
+        
         # Create a progress bar
         logging.info(f"Initiate processing of fastq files")
         pbar = tqdm(total=len(fastq_files), disable=not args.progress)
 
         # Iterate over fastq files
         for filename in fastq_files:
-            # Initialize FastqRecordReader and predict sequencing technology
-            reader = FastqRecordReader(filename, args.num_reads)
-            fastq_file = FastqFile(reader, filename)
+            # Start a new process for each file
+            pool.apply_async(process_file, args=(filename, args.num_reads, output_queue))
 
-            predicted_tech = predict_sequencing_tech(filename, args.num_reads)
-            logging.debug(f"Predicted technology for {filename}: {predicted_tech}")
+        # Close pool and wait for all processes to finish
+        pool.close()
+        pool.join()
 
-            # Extract metadata
-            if predicted_tech == "Unknown":
-                metadata = {"Warning": "Unknown technology."}
-            else:
-                extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
-                metadata = extractor.extract_metadata(n_workers=args.workers)
-
-            logging.debug(f"Metadata extracted for {filename}: {metadata}")
-
-            # Write to CSV
-            writer.writerow(
-                {
-                    "filename": filename,
-                    "predicted_tech": predicted_tech,
-                    "metadata": json.dumps(metadata),
-                }
-            )
+        # Get results from the output queue and write them to the CSV
+        while not output_queue.empty():
+            writer.writerow(output_queue.get())
 
             # Update progress bar
             pbar.update(1)
 
         # Close the progress bar
         pbar.close()
+
 
 
 def validate_num_reads(value: str) -> int:
@@ -131,6 +147,33 @@ def validate_workers(value: str) -> int:
         return ivalue
 
 
+def validate_files(fastq_files: List[str], parser: argparse.ArgumentParser) -> None:
+    """
+    Validate the provided files for correct format and existence.
+    """
+    for file in fastq_files:
+        parsed = urlparse(file)
+        if bool(parsed.netloc):  # This is a URL
+            if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path, re.IGNORECASE):
+                parser.error(
+                    f"The file {file} is not a fastq file based on file extension! "
+                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
+                )
+        else:  # This is a local file
+            if (
+                not file.lower().endswith(".fastq")
+                and not file.lower().endswith(".fastq.gz")
+                and not file.lower().endswith(".fq")
+                and not file.lower().endswith(".fq.gz")
+            ):
+                parser.error(
+                    f"The file {file} is not a fastq file based on file extension! "
+                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
+                )
+            elif not os.path.exists(file):
+                parser.error(f"The file {file} does not exist!")
+
+
 if __name__ == "__main__":
     # Initialize argument parser
     parser = argparse.ArgumentParser(
@@ -141,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
     parser.add_argument(
         "--file_list",
-        type=str,
+        type=argparse.FileType('r'),
         help="A file containing a list of fastq files, one per line.",
     )
     parser.add_argument(
@@ -173,33 +216,15 @@ if __name__ == "__main__":
 
     # Handle fastq_files or file_list arguments
     if args.file_list:
-        with open(args.file_list, "r") as f:
-            fastq_files = [line.strip() for line in f]
+        fastq_files = [line.strip() for line in args.file_list]
     else:
-        fastq_files = args.fastq_files
+        fastq_files = [f.name for f in args.fastq_files]
+
 
     # Check if fastq_files exist and are of correct format (.fastq)
-    for file in fastq_files:
-        parsed = urlparse(file)
-        if bool(parsed.netloc):  # This is a URL
-            if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-        else:  # This is a local file
-            if (
-                not file.endswith(".fastq")
-                and not file.endswith(".fastq.gz")
-                and not file.endswith(".fq")
-                and not file.endswith(".fq.gz")
-            ):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-            elif not os.path.exists(file):
-                parser.error(f"The file {file} does not exist!")
+    # Check if fastq_files exist and are of correct format (.fastq)
+    validate_files(fastq_files, parser)
+
 
     # Execute main function
     main(fastq_files, args)
