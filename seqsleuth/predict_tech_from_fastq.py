@@ -4,6 +4,34 @@ from typing import List, Generator
 
 logging.basicConfig(level=logging.INFO)
 
+# Define constants for technology names
+TECH_ILLUMINA = "Illumina"
+TECH_PACBIO = "PacBio"
+TECH_OXFORDNANOPORE = "OxfordNanopore"
+TECH_BGI = "BGI"
+TECH_COMPLETEGENOMICS = "CompleteGenomics"
+TECH_DOVETAIL = "Dovetail"
+TECH_STRANDSEQ = "StrandSeq"
+TECH_10XGENOMICS = "10XGenomics"
+TECH_MOLECULO = "Moleculo"
+TECH_UNKNOWN = "Unknown"
+
+# Define constants for technology filename identifiers
+TECH_IDENTIFIERS = {
+    TECH_ILLUMINA: ["illumina", "ilum", "nextseq", "hiseq", "miseq", "novaseq", "ill"],
+    TECH_PACBIO: ["pacbio", "pb", "sequel", "smrt"],
+    TECH_OXFORDNANOPORE: ["nanopore", "ont", "minion", "promethion"],
+    TECH_BGI: ["bgi"],
+    TECH_COMPLETEGENOMICS: ["completegenomics"],
+    TECH_DOVETAIL: ["dovetail"],
+    TECH_STRANDSEQ: ["strandseq"],
+    TECH_10XGENOMICS: ["10xgenomics"],
+    TECH_MOLECULO: ["moleculo"],
+}
+
+# Define the max length for short read
+MAX_LENGTH_SHORT_READ = 1000
+
 
 class FastqRecordReader:
     def __init__(self, filename: str, num_reads: int):
@@ -12,7 +40,7 @@ class FastqRecordReader:
 
     def read_records(self) -> Generator[pysam.FastxRecord, None, None]:
         """
-        Yield records one by one until chunk size is reached.
+        Yield records one by one until num reads is reached.
         """
         tries = 3
         while tries > 0:
@@ -28,16 +56,19 @@ class FastqRecordReader:
             except Exception as e:
                 tries -= 1
                 if tries > 0:
-                    logging.error(f"Error reading file, retrying... ({3 - tries} attempts left)")
+                    logging.error(
+                        f"Error reading file, retrying... ({3 - tries} attempts left)"
+                    )
                 else:
-                    logging.error(f"Error reading file, no attempts left. Exception: {e}")
+                    logging.error(
+                        f"Error reading file, no attempts left. Exception: {e}"
+                    )
                     raise e
 
 
 class TechnologyPredictor:
-    def __init__(self, reader: FastqRecordReader):
-        self.reader = reader
-        self.records = list(self.reader.read_records())
+    def __init__(self):
+        pass
 
     def is_short_read_technology(self) -> bool:
         """
@@ -59,15 +90,15 @@ class TechnologyPredictor:
 
 
 class FastqFile:
-    def __init__(self, reader: FastqRecordReader, filename: str):
-        self.reader = reader
+    def __init__(self, records: List[pysam.FastxRecord], filename: str):
+        self.records = records
         self.filename = filename
         self.read_names = self._get_read_names()
 
     def _get_read_names(self) -> List[str]:
         logging.debug(f"Getting read names from {self.filename}")
         read_names = []
-        for record in self.reader.read_records():
+        for record in self.records:
             if record.comment:
                 read_name = record.name + " " + record.comment
             else:
@@ -78,58 +109,28 @@ class FastqFile:
     def predict_technology_based_on_filename(self) -> str:
         try:
             filename_lower = self.filename.lower()
-            if any(
-                substring in filename_lower
-                for substring in [
-                    "illumina",
-                    "ilum",
-                    "nextseq",
-                    "hiseq",
-                    "miseq",
-                    "novaseq",
-                    "ill",
-                ]
-            ):
-                return "Illumina"
-            elif any(
-                substring in filename_lower
-                for substring in ["pacbio", "pb", "sequel", "smrt"]
-            ):
-                return "PacBio"
-            elif any(
-                substring in filename_lower
-                for substring in ["nanopore", "ont", "minion", "promethion"]
-            ):
-                return "OxfordNanopore"
-            elif any(substring in filename_lower for substring in ["bgi"]):
-                return "BGI"
-            elif any(substring in filename_lower for substring in ["completegenomics"]):
-                return "CompleteGenomics"
-            elif any(substring in filename_lower for substring in ["dovetail"]):
-                return "Dovetail"
-            elif any(substring in filename_lower for substring in ["strandseq"]):
-                return "StrandSeq"
-            elif any(substring in filename_lower for substring in ["10xgenomics"]):
-                return "10XGenomics"
-            elif any(substring in filename_lower for substring in ["moleculo"]):
-                return "Moleculo"
-            else:
-                return "Unknown"
+            for tech, identifiers in TECH_IDENTIFIERS.items():
+                if any(substring in filename_lower for substring in identifiers):
+                    return tech
+            return TECH_UNKNOWN
         except Exception as e:
             logging.error(f"Error predicting technology based on filename: {e}")
-            return "Unknown"
+            return TECH_UNKNOWN
 
 
 def predict_sequencing_tech(filename: str, num_reads: int = 5) -> str:
     try:
         reader = FastqRecordReader(filename, num_reads)
-        fastq_file = FastqFile(reader, filename)
+        records = list(reader.read_records())
+        fastq_file = FastqFile(records, filename)
     except IOError as e:
         raise IOError(f"Error initializing FastqFile: {e}")
 
     try:
         tech_from_filepath = fastq_file.predict_technology_based_on_filename()
-        logging.debug(f"tech from filepath: {tech_from_filepath}")
+        logging.debug(
+            f"Predicted tech from filepath: {tech_from_filepath}, for {filename}"
+        )
     except Exception as e:
         return f"Error predicting technology based on filename: {e}"
 
