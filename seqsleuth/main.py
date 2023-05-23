@@ -54,6 +54,7 @@ logging.basicConfig(
     ],
 )
 
+
 def process_file(filename, num_reads, output_queue):
     # Initialize FastqRecordReader and predict sequencing technology
     reader = FastqRecordReader(filename, num_reads)
@@ -77,6 +78,7 @@ def process_file(filename, num_reads, output_queue):
         }
     )
 
+
 def main(fastq_files: List[str], args: argparse.Namespace) -> None:
     """
     Main function that processes each FASTQ file and extracts metadata.
@@ -93,7 +95,7 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
         # Initialize a manager queue to handle the output
         manager = multiprocessing.Manager()
         output_queue = manager.Queue()
-        
+
         # Create a progress bar
         logging.info(f"Initiate processing of fastq files")
         pbar = tqdm(total=len(fastq_files), disable=not args.progress)
@@ -101,7 +103,9 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
         # Iterate over fastq files
         for filename in fastq_files:
             # Start a new process for each file
-            pool.apply_async(process_file, args=(filename, args.num_reads, output_queue))
+            pool.apply_async(
+                process_file, args=(filename, args.num_reads, output_queue)
+            )
 
         # Close pool and wait for all processes to finish
         pool.close()
@@ -116,7 +120,6 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
 
         # Close the progress bar
         pbar.close()
-
 
 
 def validate_num_reads(value: str) -> int:
@@ -184,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
     parser.add_argument(
         "--file_list",
-        type=argparse.FileType('r'),
+        type=argparse.FileType("r"),
         help="A file containing a list of fastq files, one per line.",
     )
     parser.add_argument(
@@ -220,11 +223,8 @@ if __name__ == "__main__":
     else:
         fastq_files = [f.name for f in args.fastq_files]
 
-
-    # Check if fastq_files exist and are of correct format (.fastq)
     # Check if fastq_files exist and are of correct format (.fastq)
     validate_files(fastq_files, parser)
-
 
     # Execute main function
     main(fastq_files, args)
