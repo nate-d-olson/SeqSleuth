@@ -56,6 +56,16 @@ logging.basicConfig(
 
 
 def process_file(filename: str, num_reads: int) -> Dict[str, Any]:
+    """
+    Process each file to predict the sequencing technology and extract metadata.
+
+    Args:
+        filename (str): The filename of the FASTQ file to process.
+        num_reads (int): The number of reads to process in the file.
+
+    Returns:
+        dict: A dictionary containing the filename, predicted technology, and extracted metadata.
+    """
     # Logging process id for debugging multiprocessing
     logging.debug(f"Processing file: {filename} in process id: {os.getpid()}")
 
@@ -95,9 +105,93 @@ def process_file(filename: str, num_reads: int) -> Dict[str, Any]:
         pass
 
 
+def validate_num_reads(value: str) -> int:
+    """
+    Validate the num_reads argument, which specifies the number of reads to process in each file.
+
+    Args:
+        value (str): The provided num_reads argument.
+
+    Returns:
+        int: The validated num_reads argument.
+
+    Raises:
+        argparse.ArgumentTypeError: If the num_reads argument is invalid.
+    """
+    ivalue = int(value)
+    if ivalue <= -2 or ivalue == 0:
+        raise argparse.ArgumentTypeError(
+            "Please provide a number greater than 0 for the number of reads "
+            + "to analyze, or -1 to analyze all"
+        )
+    return ivalue
+
+
+def validate_workers(value: str) -> int:
+    """
+    Validate the workers argument, which specifies the number of worker threads to use.
+
+    Args:
+        value (str): The provided workers argument.
+
+    Returns:
+        int: The validated workers argument.
+
+    Raises:
+        argparse.ArgumentTypeError: If the workers argument is invalid.
+    """
+    if value == "all":
+        return cpu_count()
+    else:
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(
+                "Number of workers must be greater than 0, or 'all' to use all CPU cores."
+            )
+        return ivalue
+
+
+def validate_files(fastq_files: List[str], parser: argparse.ArgumentParser) -> None:
+    """
+    Validate the provided list of FASTQ files.
+
+    Args:
+        fastq_files (list): The provided list of FASTQ files.
+        parser (argparse.ArgumentParser): The argument parser.
+
+    Raises:
+        argparse.ArgumentTypeError: If a FASTQ file is invalid.
+    """
+    for file in fastq_files:
+        parsed = urlparse(file)
+        if bool(parsed.netloc):  # This is a URL
+            if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path, re.IGNORECASE):
+                parser.error(
+                    f"The file {file} is not a fastq file based on file extension! "
+                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
+                )
+        else:  # This is a local file
+            if (
+                not file.lower().endswith(".fastq")
+                and not file.lower().endswith(".fastq.gz")
+                and not file.lower().endswith(".fq")
+                and not file.lower().endswith(".fq.gz")
+            ):
+                parser.error(
+                    f"The file {file} is not a fastq file based on file extension! "
+                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
+                )
+            elif not os.path.exists(file):
+                parser.error(f"The file {file} does not exist!")
+
+
 def main(fastq_files: List[str], args: argparse.Namespace) -> None:
     """
     Main function that processes each FASTQ file and extracts metadata.
+
+    Args:
+        fastq_files (list): The provided list of FASTQ files.
+        args (argparse.Namespace): The parsed command-line arguments.
     """
     # Initialize CSV file for writing results
     with open(args.output, "w", newline="") as csvfile:
@@ -129,61 +223,6 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
 
         # Close the progress bar
         pbar.close()
-
-
-def validate_num_reads(value: str) -> int:
-    """
-    Validate num_reads argument.
-    """
-    ivalue = int(value)
-    if ivalue <= -2 or ivalue == 0:
-        raise argparse.ArgumentTypeError(
-            "Please provide a number greater than 0 for the number of reads "
-            + "to analyze, or -1 to analyze all"
-        )
-    return ivalue
-
-
-def validate_workers(value: str) -> int:
-    """
-    Validate workers argument.
-    """
-    if value == "all":
-        return cpu_count()
-    else:
-        ivalue = int(value)
-        if ivalue <= 0:
-            raise argparse.ArgumentTypeError(
-                "Number of workers must be greater than 0, or 'all' to use all CPU cores."
-            )
-        return ivalue
-
-
-def validate_files(fastq_files: List[str], parser: argparse.ArgumentParser) -> None:
-    """
-    Validate the provided files for correct format and existence.
-    """
-    for file in fastq_files:
-        parsed = urlparse(file)
-        if bool(parsed.netloc):  # This is a URL
-            if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path, re.IGNORECASE):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-        else:  # This is a local file
-            if (
-                not file.lower().endswith(".fastq")
-                and not file.lower().endswith(".fastq.gz")
-                and not file.lower().endswith(".fq")
-                and not file.lower().endswith(".fq.gz")
-            ):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-            elif not os.path.exists(file):
-                parser.error(f"The file {file} does not exist!")
 
 
 if __name__ == "__main__":
