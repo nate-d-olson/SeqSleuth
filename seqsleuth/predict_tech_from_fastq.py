@@ -15,18 +15,22 @@ TECH_STRANDSEQ = "StrandSeq"
 TECH_10XGENOMICS = "10XGenomics"
 TECH_MOLECULO = "Moleculo"
 TECH_UNKNOWN = "Unknown"
+TECH_ASSEMBLY = "Assembly"
+TECH_ION = "IonTorrent"
 
 # Define constants for technology filename identifiers
 TECH_IDENTIFIERS = {
+    TECH_ASSEMBLY: ["asm","assembly","assemblies"],
     TECH_ILLUMINA: ["illumina", "ilum", "nextseq", "hiseq", "miseq", "novaseq", "ill"],
     TECH_PACBIO: ["pacbio", "pb", "sequel", "smrt"],
     TECH_OXFORDNANOPORE: ["nanopore", "ont", "minion", "promethion"],
     TECH_BGI: ["bgi"],
     TECH_COMPLETEGENOMICS: ["completegenomics"],
     TECH_DOVETAIL: ["dovetail"],
-    TECH_STRANDSEQ: ["strandseq"],
+    TECH_STRANDSEQ: ["strandseq", "strand-seq"],
     TECH_10XGENOMICS: ["10xgenomics"],
     TECH_MOLECULO: ["moleculo"],
+    TECH_ION: ["ion_exome","torrent"]
 }
 
 # Define the max length for short read

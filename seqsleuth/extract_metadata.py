@@ -17,7 +17,7 @@ class MetadataExtractor:
         self.factory = SeqTechFactory(self.predicted_tech, self.read_names)
         self.tech_instance = self.factory.create()
 
-    def extract_metadata(self, n_workers=4):
+    def extract_metadata(self):
         try:
             if self.tech_instance is None:
                 logger.error("No tech class available for metadata extraction.")
@@ -25,10 +25,8 @@ class MetadataExtractor:
 
             metadata_dict = {}
 
-            # Use parallel processing to extract metadata from all read names
-            metadata_list = self.factory.extract_metadata_in_parallel(
-                self.tech_instance, n_workers
-            )
+            # Extract metadata from all read names sequentially
+            metadata_list = self.extract_metadata_sequentially()
 
             for read_metadata in metadata_list:
                 if read_metadata:  # only process non-empty metadata
@@ -49,3 +47,12 @@ class MetadataExtractor:
         except Exception as e:
             logger.error(f"Exception occurred during metadata extraction: {e}")
             return {}
+
+    def extract_metadata_sequentially(self):
+        metadata_list = []
+        for read_name in self.read_names:
+            metadata_list.append(
+                self.tech_instance.extract_metadata_from_read(read_name)
+            )
+
+        return metadata_list

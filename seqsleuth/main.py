@@ -29,13 +29,15 @@ import argparse
 import csv
 import json
 import logging
-import multiprocessing
 import os
 import re
 import sys
+import time
 from tqdm import tqdm
 from typing import List
 from urllib.parse import urlparse
+import concurrent.futures
+from concurrent.futures import as_completed
 
 
 from extract_metadata import MetadataExtractor
@@ -55,28 +57,44 @@ logging.basicConfig(
 )
 
 
-def process_file(filename, num_reads, output_queue):
-    # Initialize FastqRecordReader and predict sequencing technology
-    reader = FastqRecordReader(filename, num_reads)
-    fastq_file = FastqFile(reader, filename)
+def process_file(filename, num_reads):
+    # Logging process id for debugging multiprocessing
+    logging.debug(f"Processing file: {filename} in process id: {os.getpid()}")
 
-    predicted_tech = predict_sequencing_tech(filename, num_reads)
+    try:
+        # Initialize FastqRecordReader and predict sequencing technology
+        reader = FastqRecordReader(filename, num_reads)
+        records = list(reader.read_records())
+        fastq_file = FastqFile(records, filename)
+        logging.debug(
+            f"Initialized FastqRecordReader and FastqFile for file: {filename}"
+        )
 
-    # Extract metadata
-    if predicted_tech == "Unknown":
-        metadata = {"Warning": "Unknown technology."}
-    else:
-        extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
-        metadata = extractor.extract_metadata(n_workers=multiprocessing.cpu_count())
+        predicted_tech = predict_sequencing_tech(filename, num_reads)
+        logging.debug(f"Predicted technology for file {filename} is {predicted_tech}")
 
-    # Output data to queue
-    output_queue.put(
-        {
+        # Extract metadata
+        if predicted_tech == "Unknown":
+            metadata = {"Warning": "Unknown technology."}
+            logging.warning(
+                f"Unknown technology for file {filename}. Unable to extract metadata."
+            )
+        else:
+            extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
+            metadata = extractor.extract_metadata()  # multiprocessing.cpu_count())
+            logging.debug(f"Extracted metadata for file: {filename}")
+
+        # Output results
+        return {
             "filename": filename,
             "predicted_tech": predicted_tech,
             "metadata": json.dumps(metadata),
         }
-    )
+
+    except Exception as e:
+        # If there's an error, log it and continue to the next file
+        logging.error(f"Error processing file: {filename}. Error message: {str(e)}")
+        pass
 
 
 def main(fastq_files: List[str], args: argparse.Namespace) -> None:
@@ -89,34 +107,27 @@ def main(fastq_files: List[str], args: argparse.Namespace) -> None:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        # Initialize a multiprocessing pool
-        pool = multiprocessing.Pool(processes=args.workers)
-
-        # Initialize a manager queue to handle the output
-        manager = multiprocessing.Manager()
-        output_queue = manager.Queue()
-
         # Create a progress bar
         logging.info(f"Initiate processing of fastq files")
         pbar = tqdm(total=len(fastq_files), disable=not args.progress)
 
-        # Iterate over fastq files
-        for filename in fastq_files:
-            # Start a new process for each file
-            pool.apply_async(
-                process_file, args=(filename, args.num_reads, output_queue)
-            )
+        # Initialize a ProcessPoolExecutor
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=args.workers
+        ) as executor:
+            # Prepare futures for all fastq files
+            futures = {
+                executor.submit(process_file, filename, args.num_reads): filename
+                for filename in fastq_files
+            }
 
-        # Close pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+            # Iterate over futures as they complete
+            for future in concurrent.futures.as_completed(futures):
+                # Get results from the future and write them to the CSV
+                writer.writerow(future.result())
 
-        # Get results from the output queue and write them to the CSV
-        while not output_queue.empty():
-            writer.writerow(output_queue.get())
-
-            # Update progress bar
-            pbar.update(1)
+                # Update progress bar
+                pbar.update(1)
 
         # Close the progress bar
         pbar.close()
