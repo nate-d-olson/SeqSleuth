@@ -7,6 +7,17 @@ from datetime import datetime
 
 @dataclass
 class SeqTech:
+    """Base class for different Sequencing Technologies.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods:
+        check_read_name_convention: Checks if the read name follows the convention.
+        extract_metadata_from_read: Extracts metadata from the read name.
+        get_metadata_fields: Returns the metadata fields.
+    """
+
     read_names: List[str]
     logger: Any = field(init=False, repr=False)
 
@@ -14,23 +25,69 @@ class SeqTech:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the sequencing technology convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Raises:
+            NotImplementedError: This is a base method that should be implemented in subclasses.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         raise NotImplementedError()
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
+        """Extracts metadata from the read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Raises:
+            NotImplementedError: This is a base method that should be implemented in subclasses.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         raise NotImplementedError()
 
     def get_metadata_fields(self) -> List[str]:
+        """Gets the metadata fields.
+
+        Raises:
+            NotImplementedError: This is a base method that should be implemented in subclasses.
+
+        Returns:
+            A list of strings representing the metadata fields.
+        """
         raise NotImplementedError()
 
 
 @dataclass
 class Illumina(SeqTech):
+    """Subclass of SeqTech for Illumina sequencing technology.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     illumina_pattern: re.Pattern = re.compile(
         "^[\w-]+:\d+:[\w-]+:\d+:\d+:\d+:\d+\s[12]:[YN]:\d+:(\d+|[ATCGN+]+)$"
     )
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the Illumina convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         match = self.illumina_pattern.match(read_name) is not None
         if not match:
             self.logger.error(
@@ -39,6 +96,14 @@ class Illumina(SeqTech):
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
+        """Extracts metadata from the Illumina read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         if not self.check_read_name_convention(read_name):
             self.logger.error(
                 "Read name convention check failed for read id: " + read_name
@@ -61,6 +126,14 @@ class Illumina(SeqTech):
 
 @dataclass
 class PacBio(SeqTech):
+    """Subclass of SeqTech for PacBio sequencing technology.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     pacbio_pattern_clr: re.Pattern = re.compile(
         "^m\d+_\d+_\d+_c\d+_s\d+_p\d+/\d+/\d+_\d+$"
@@ -68,6 +141,14 @@ class PacBio(SeqTech):
     pacbio_pattern_ccs: re.Pattern = re.compile("m\d+(\w*|U_)\d+_\d+\d+/\d+/ccs")
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the PacBio convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         match = (
             self.pacbio_pattern_clr.match(read_name) is not None
             or self.pacbio_pattern_ccs.match(read_name) is not None
@@ -78,7 +159,15 @@ class PacBio(SeqTech):
             )
         return match
 
-    def extract_metadata_from_read(self, read_name):
+    def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
+        """Extracts metadata from the PacBio read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         if not self.check_read_name_convention(read_name):
             self.logger.error(
                 "Read name convention check failed for read id: " + read_name
@@ -107,6 +196,14 @@ class PacBio(SeqTech):
 
 @dataclass
 class OxfordNanopore(SeqTech):
+    """Subclass of SeqTech for Oxford Nanopore sequencing technology.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     nanopore_pattern: re.Pattern = re.compile(
         r"^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12} runid=[0-9a-f]{40}.*$"
@@ -118,6 +215,14 @@ class OxfordNanopore(SeqTech):
     metadata: Dict[str, str] = field(default_factory=dict)
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the ONT convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         match = (
             self.nanopore_pattern.match(read_name) is not None
             or self.nanopore_pattern_non_std.match(read_name) is not None
@@ -129,6 +234,14 @@ class OxfordNanopore(SeqTech):
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
+        """Extracts metadata from the Oxford Nanopore read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         if not self.check_read_name_convention(read_name):
             self.logger.error(
                 "Read name convention check failed for read id: " + read_name
@@ -166,11 +279,27 @@ class OxfordNanopore(SeqTech):
 
 @dataclass
 class TenXGenomicsLinkedReads(SeqTech):
+    """Subclass of SeqTech for 10X Genomics Linked-Reads sequencing technology.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     linkedreads_pattern: re.Pattern = re.compile(r"^\S+:\S+:\S+:\S+:\S+:.*$")
     metadata_values: List[Dict[str, str]] = field(default_factory=list)
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the 10X Genomics convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         match = self.linkedreads_pattern.match(read_name) is not None
         if not match:
             self.logger.error(
@@ -179,6 +308,14 @@ class TenXGenomicsLinkedReads(SeqTech):
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, str]:
+        """Extracts metadata from the 10X Genomics Linked-Reads read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         if not self.check_read_name_convention(read_name):
             self.logger.error(
                 "Read name convention check failed for read id: " + read_name
@@ -209,6 +346,14 @@ class TenXGenomicsLinkedReads(SeqTech):
 
 @dataclass
 class DovetailSeqTech(SeqTech):
+    """Subclass of SeqTech for Dovetail Genomics sequencing technology.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     dovetail_pattern: re.Pattern = re.compile(
         r"^(\S+:\S+:\S+:\S+:\S+:\S+:\S+)\s(\d:\S:\d:\S+)$"
@@ -217,6 +362,14 @@ class DovetailSeqTech(SeqTech):
     n_reads: int = 0
 
     def check_read_name_convention(self, read_name: str) -> bool:
+        """Checks if the read name follows the Dovetail convention.
+
+        Args:
+            read_name: A string of the read name to check.
+
+        Returns:
+            A boolean representing whether the read name follows the convention.
+        """
         match = self.dovetail_pattern.match(read_name) is not None
         if not match:
             self.logger.error(
@@ -225,6 +378,14 @@ class DovetailSeqTech(SeqTech):
         return match
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, List[str]]:
+        """Extracts metadata from the Dovetail Genomics read name.
+
+        Args:
+            read_name: A string of the read name.
+
+        Returns:
+            A dictionary representing the extracted metadata.
+        """
         if not self.check_read_name_convention(read_name):
             self.logger.error(
                 "Read name convention check failed for read id: " + read_name
@@ -251,8 +412,16 @@ class DovetailSeqTech(SeqTech):
 
 @dataclass
 class OtherSeqTech(SeqTech):
+    """Subclass of SeqTech for other sequencing technologies.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     def check_read_name_convention(self, read_name: str) -> bool:
-        # As the convention for "Other" is not defined, you may return True or apply some conditions as needed
+        # As the convention for "Other" is not defined, returns True
         return True
 
     def extract_metadata_from_read(self, read_name: str) -> Dict[str, Any]:
@@ -266,6 +435,14 @@ class OtherSeqTech(SeqTech):
 
 @dataclass
 class UnknownSeqTech(SeqTech):
+    """Subclass of SeqTech for unknown sequencing technologies.
+
+    Args:
+        read_names: A list of read names.
+
+    Methods are inherited from SeqTech class.
+    """
+
     read_names: List[str]
     tech: str = "Unknown"
     read_name_regex: str = r".*"
@@ -275,10 +452,26 @@ class UnknownSeqTech(SeqTech):
         self.read_name_pattern = re.compile(self.read_name_regex)
 
     def format_reads(self):
+        """Formats read names.
+
+        Returns:
+            A dictionary representing the formatted read names.
+        """
         return {"tech": self.tech, "read_names": self.read_names}
 
 
 class SeqTechFactory:
+    """Factory class for creating SeqTech class instances.
+
+    Args:
+        predicted_tech: String representing the predicted sequencing technology.
+        read_names: A list of read names.
+        logging_level: String representing the logging level.
+
+    Method:
+        create: Creates an instance of a SeqTech subclass based on the predicted technology.
+    """
+
     def __init__(
         self, predicted_tech: str, read_names: List[str], logging_level: str = "INFO"
     ):
@@ -298,6 +491,11 @@ class SeqTechFactory:
         }
 
     def create(self) -> SeqTech:
+        """Creates an instance of a SeqTech subclass based on the predicted technology.
+
+        Returns:
+            An instance of a SeqTech subclass.
+        """
         seqtech_class = self.seqtech_classes.get(self.predicted_tech, OtherSeqTech)
         try:
             instance = seqtech_class(self.read_names)
