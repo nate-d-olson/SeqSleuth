@@ -2,9 +2,7 @@ import re
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any, Type
-from predict_tech_from_fastq import FastqFile
 from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor
 
 
 @dataclass
