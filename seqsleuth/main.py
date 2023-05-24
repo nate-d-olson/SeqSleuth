@@ -26,19 +26,16 @@ This script was developed with assistance from a conversation with OpenAI's Chat
 """
 
 import argparse
+import concurrent.futures
 import csv
 import json
 import logging
 import os
 import re
 import sys
-import time
-from tqdm import tqdm
-from typing import List
+from multiprocessing import cpu_count
+from typing import Any, Dict, List
 from urllib.parse import urlparse
-import concurrent.futures
-from concurrent.futures import as_completed
-
 
 from extract_metadata import MetadataExtractor
 from predict_tech_from_fastq import (
@@ -46,6 +43,7 @@ from predict_tech_from_fastq import (
     FastqRecordReader,
     predict_sequencing_tech,
 )
+from tqdm import tqdm
 
 # Set up logging
 logging.basicConfig(
@@ -57,7 +55,7 @@ logging.basicConfig(
 )
 
 
-def process_file(filename, num_reads):
+def process_file(filename: str, num_reads: int) -> Dict[str, Any]:
     # Logging process id for debugging multiprocessing
     logging.debug(f"Processing file: {filename} in process id: {os.getpid()}")
 
@@ -151,7 +149,7 @@ def validate_workers(value: str) -> int:
     Validate workers argument.
     """
     if value == "all":
-        return multiprocessing.cpu_count()
+        return cpu_count()
     else:
         ivalue = int(value)
         if ivalue <= 0:
