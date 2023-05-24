@@ -27,7 +27,7 @@ class SeqTech:
 class Illumina(SeqTech):
     read_names: List[str]
     illumina_pattern: re.Pattern = re.compile(
-        "^[\w-]+:\d+:[\w-]+:\d+:\d+:\d+:\d+\s[12]:[YN]:\d+:[ATCGN+]+$"
+        "^[\w-]+:\d+:[\w-]+:\d+:\d+:\d+:\d+\s[12]:[YN]:\d+:(\d+|[ATCGN+]+)$"
     )
 
     def check_read_name_convention(self, read_name: str) -> bool:
@@ -65,7 +65,7 @@ class PacBio(SeqTech):
     pacbio_pattern_clr: re.Pattern = re.compile(
         "^m\d+_\d+_\d+_c\d+_s\d+_p\d+/\d+/\d+_\d+$"
     )
-    pacbio_pattern_ccs: re.Pattern = re.compile("^m\d+_\d+_\d+\d+/\d+/ccs")
+    pacbio_pattern_ccs: re.Pattern = re.compile("m\d+(\w*|U_)\d+_\d+\d+/\d+/ccs")
 
     def check_read_name_convention(self, read_name: str) -> bool:
         match = (
@@ -90,7 +90,7 @@ class PacBio(SeqTech):
         parts = read_name.split("/")
 
         # The first field contains the movie name
-        metadata["movie_name"] = parts[0].split("_")[0]
+        metadata["movie_name"] = parts[0]#.split("_")[0]
 
         # Check if it's a CCS read
         if parts[2] == "ccs":
@@ -111,11 +111,17 @@ class OxfordNanopore(SeqTech):
     nanopore_pattern: re.Pattern = re.compile(
         r"^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12} runid=[0-9a-f]{40}.*$"
     )
+    nanopore_pattern_non_std: re.Pattern = re.compile(
+        r"^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}.*[a-zA-Z0-9_/:.]*$"
+    )
     earliest_start_date: Optional[datetime] = None
     metadata: Dict[str, str] = field(default_factory=dict)
 
     def check_read_name_convention(self, read_name: str) -> bool:
-        match = self.nanopore_pattern.match(read_name) is not None
+        match = (
+            self.nanopore_pattern.match(read_name) is not None or
+            self.nanopore_pattern_non_std.match(read_name) is not None
+        )
         if not match:
             self.logger.error(
                 f"Error: Read name '{read_name}' does not match Oxford Nanopore pattern."
@@ -128,23 +134,26 @@ class OxfordNanopore(SeqTech):
                 "Read name convention check failed for read id: " + read_name
             )
             return {}
+        if self.nanopore_pattern.match(read_name):
+            parts = read_name.split()
+            for pair in parts[1:]:
+                key, value = pair.split("=")
+                if key not in ["read", "ch"]:
+                    self.metadata[key] = value
 
-        parts = read_name.split()
-        for pair in parts[1:]:
-            key, value = pair.split("=")
-            if key not in ["read", "ch"]:
-                self.metadata[key] = value
+            start_time = datetime.strptime(
+                self.metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
+            if self.earliest_start_date is None or start_time < self.earliest_start_date:
+                self.earliest_start_date = start_time
 
-        start_time = datetime.strptime(
-            self.metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ"
-        ).date()
-        if self.earliest_start_date is None or start_time < self.earliest_start_date:
-            self.earliest_start_date = start_time
-
-        self.metadata["earliest_start_date"] = self.earliest_start_date.strftime(
-            "%Y-%m-%d"
-        )
-        self.metadata.pop("start_time", None)
+            self.metadata["earliest_start_date"] = self.earliest_start_date.strftime(
+                "%Y-%m-%d"
+            )
+            self.metadata.pop("start_time", None)
+        else:
+            self.metadata["read_name"] = read_name
+            self.metadata["note"] = "non-standard read name"
 
         return self.metadata
 
@@ -295,13 +304,3 @@ class SeqTechFactory:
                 f"An error occurred while attempting to create an instance of {seqtech_class.__name__}: {str(e)}"
             )
             return UnknownSeqTech(self.read_names)
-
-    def extract_metadata_in_parallel(self, seqtech_instance, n_workers):
-        with ProcessPoolExecutor(max_workers=n_workers) as executor:
-            metadata_list = list(
-                executor.map(
-                    seqtech_instance.extract_metadata_from_read, self.read_names
-                )
-            )
-
-        return metadata_list
