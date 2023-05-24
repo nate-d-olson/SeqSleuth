@@ -20,7 +20,7 @@ TECH_ION = "IonTorrent"
 
 # Define constants for technology filename identifiers
 TECH_IDENTIFIERS = {
-    TECH_ASSEMBLY: ["asm","assembly","assemblies"],
+    TECH_ASSEMBLY: ["asm", "assembly", "assemblies"],
     TECH_ILLUMINA: ["illumina", "ilum", "nextseq", "hiseq", "miseq", "novaseq", "ill"],
     TECH_PACBIO: ["pacbio", "pb", "sequel", "smrt"],
     TECH_OXFORDNANOPORE: ["nanopore", "ont", "minion", "promethion"],
@@ -30,7 +30,7 @@ TECH_IDENTIFIERS = {
     TECH_STRANDSEQ: ["strandseq", "strand-seq"],
     TECH_10XGENOMICS: ["10xgenomics"],
     TECH_MOLECULO: ["moleculo"],
-    TECH_ION: ["ion_exome","torrent"]
+    TECH_ION: ["ion_exome", "torrent"],
 }
 
 # Define the max length for short read

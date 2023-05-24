@@ -90,7 +90,7 @@ class PacBio(SeqTech):
         parts = read_name.split("/")
 
         # The first field contains the movie name
-        metadata["movie_name"] = parts[0]#.split("_")[0]
+        metadata["movie_name"] = parts[0]  # .split("_")[0]
 
         # Check if it's a CCS read
         if parts[2] == "ccs":
@@ -119,8 +119,8 @@ class OxfordNanopore(SeqTech):
 
     def check_read_name_convention(self, read_name: str) -> bool:
         match = (
-            self.nanopore_pattern.match(read_name) is not None or
-            self.nanopore_pattern_non_std.match(read_name) is not None
+            self.nanopore_pattern.match(read_name) is not None
+            or self.nanopore_pattern_non_std.match(read_name) is not None
         )
         if not match:
             self.logger.error(
@@ -144,7 +144,10 @@ class OxfordNanopore(SeqTech):
             start_time = datetime.strptime(
                 self.metadata.get("start_time", ""), "%Y-%m-%dT%H:%M:%SZ"
             ).date()
-            if self.earliest_start_date is None or start_time < self.earliest_start_date:
+            if (
+                self.earliest_start_date is None
+                or start_time < self.earliest_start_date
+            ):
                 self.earliest_start_date = start_time
 
             self.metadata["earliest_start_date"] = self.earliest_start_date.strftime(
