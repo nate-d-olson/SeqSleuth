@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class MetadataExtractor:
+class ReadNameMetadataExtractor:
     def __init__(self, fastq_file: FastqFile, filename: str, predicted_tech: str):
         self.filename = filename
         self.predicted_tech = predicted_tech
