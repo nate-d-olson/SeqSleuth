@@ -139,7 +139,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "file_list",
         type=argparse.FileType("r"),
-        help="A file containing a list of fastq files, one per line.",
+        help="A csv file containing a the columns `file_type`, `filename`,"
+        + " and `filepath`. The `filename` and `filepath` values are "
+        + "combined to generate the file url, assuming the file is on the "
+        + "NIH hosted GIAB ftp site.",
     )
     parser.add_argument(
         "--num_reads",
