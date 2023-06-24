@@ -1,242 +1,144 @@
-"""
-Metadata Extraction from FASTQ files
-
-This script allows the user to predict the sequencing technology and extract metadata from FASTQ files. 
-The user can specify a list of FASTQ files as arguments. The output file name for the CSV output can also be specified. 
-If not provided, the output file name defaults to 'output.csv'.
-
-Usage: python main.py <FASTQ_files> [--num_reads] [--output] [--verbose] [--workers]
-
-Required arguments:
-    <FASTQ_files>: List of FASTQ files.
-
-Optional arguments:
-    --file_list: text file with a list of local file paths or uris for fastq files, assumes one file per row
-    --num_reads: Number of reads to process. Default is 5. Set to -1 to process all reads.
-    --workers: Number of worker threads. Default is 1. Set to 'all' to use all CPU cores.
-    --output: Output CSV file. Default is 'output.csv'.
-    --verbose: If set, the script will print detailed messages.
-    --progress: If set, the script will provide a progress bar indicating the number of fastq files analyzed.
-
-Author: ND Olson
-Date: 2023-05-12
-
-Acknowledgements:
-This script was developed with assistance from a conversation with OpenAI's ChatGPT.
-"""
-
 import argparse
 import concurrent.futures
 import csv
 import json
 import logging
 import os
-import re
 import sys
 from multiprocessing import cpu_count
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
-from extract_metadata import MetadataExtractor
-from predict_tech_from_fastq import (
-    FastqFile,
-    FastqRecordReader,
-    predict_sequencing_tech,
-)
+from seqsleuth.extractors.bam import BAMFile, BAMMetadataExtractor
+from seqsleuth.extractors.filename import FilenameMetadataExtractor
+from seqsleuth.extractors.readnames import ReadNameMetadataExtractor
+from seqsleuth.extractors.vcf import VCFFile, VCFMetadataExtractor
+from seqsleuth.keywords.bam import metadata_keywords as bam_keys
+from seqsleuth.keywords.fastq import metadata_keywords as fastq_keys
+from seqsleuth.keywords.vcf import metadata_keywords as vcf_keys
+from seqsleuth.predict_tech_from_fastq import (FastqFile, FastqRecordReader,
+                                     predict_sequencing_tech)
+from seqsleuth import version
 from tqdm import tqdm
 
-# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 
-def process_file(filename: str, num_reads: int) -> Dict[str, Any]:
-    """
-    Process each file to predict the sequencing technology and extract metadata.
-
-    Args:
-        filename (str): The filename of the FASTQ file to process.
-        num_reads (int): The number of reads to process in the file.
-
-    Returns:
-        dict: A dictionary containing the filename, predicted technology, and extracted metadata.
-    """
-    # Logging process id for debugging multiprocessing
+def process_file(file_type: str, filename: str, num_reads: int) -> Dict[str, Any]:
     logging.debug(f"Processing file: {filename} in process id: {os.getpid()}")
-
     try:
-        # Initialize FastqRecordReader and predict sequencing technology
-        reader = FastqRecordReader(filename, num_reads)
-        records = list(reader.read_records())
-        fastq_file = FastqFile(records, filename)
-        logging.debug(
-            f"Initialized FastqRecordReader and FastqFile for file: {filename}"
-        )
+        if file_type == "fastq":
+            reader = FastqRecordReader(filename, num_reads)
+            records = list(reader.read_records())
+            file = FastqFile(records, filename)
+            predicted_tech = predict_sequencing_tech(filename)
+            extractor = ReadNameMetadataExtractor(file, filename, predicted_tech)
+            metadata = extractor.extract_metadata()
+            metadata_keywords = fastq_keys
+        elif file_type == "bam":
+            file = BAMFile(filename)
+            metadata = file.metadata()
+            metadata_keywords = bam_keys
+        elif file_type == "vcf":
+            file = VCFFile(filename)
+            metadata = file.metadata()
+            metadata_keywords = vcf_keys
 
-        predicted_tech = predict_sequencing_tech(filename, num_reads)
-        logging.debug(f"Predicted technology for file {filename} is {predicted_tech}")
+        filename_extractor = FilenameMetadataExtractor(metadata_keywords)
+        filename_metadata = filename_extractor.extract_metadata(filename)
+        metadata.update(filename_metadata)
 
-        # Extract metadata
-        if predicted_tech == "Unknown":
-            metadata = {"Warning": "Unknown technology."}
-            logging.warning(
-                f"Unknown technology for file {filename}. Unable to extract metadata."
-            )
-        else:
-            extractor = MetadataExtractor(fastq_file, filename, predicted_tech)
-            metadata = extractor.extract_metadata()  # multiprocessing.cpu_count())
-            logging.debug(f"Extracted metadata for file: {filename}")
-
-        # Output results
-        return {
-            "filename": filename,
-            "predicted_tech": predicted_tech,
-            "metadata": json.dumps(metadata),
-        }
+        return {"filename": filename, "metadata": json.dumps(metadata)}
 
     except Exception as e:
-        # If there's an error, log it and continue to the next file
-        logging.error(f"Error processing file: {filename}. Error message: {str(e)}")
-        pass
+        logging.error(
+            f"Error processing file in `process_file`: {filename}. Error message: {str(e)}"
+        )
+
+
+def main(
+    file_info: List[Dict[str, str]],
+    output_dir: str,
+    num_reads: int,
+    num_workers: int,
+    show_progress: bool,
+) -> None:
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Warning: The directory {output_dir} did not exist and was created.")
+
+    for file_type in ["fastq", "bam", "vcf"]:
+        file_info_of_type = [
+            info for info in file_info if info["filetype"].lower() == file_type
+        ]
+        if file_info_of_type:
+            with open(
+                os.path.join(output_dir, f"{file_type}_metadata.csv"), "w", newline=""
+            ) as csvfile:
+                fieldnames = ["filename", "metadata"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                pbar = tqdm(total=len(file_info_of_type), disable=not show_progress)
+
+                with concurrent.futures.ProcessPoolExecutor(
+                    max_workers=num_workers
+                ) as executor:
+                    futures = [
+                        executor.submit(
+                            process_file,
+                            file_type,
+                            (
+                                f"https://ftp-trace.ncbi.nlm.nih.gov"
+                                f"/ReferenceSamples/giab/"
+                                f"{info['filepath'].replace('/giab/ftp/', '')}/"
+                                f"{info['filename']}"
+                            ),
+                            num_reads,
+                        )
+                        for info in file_info_of_type
+                    ]
+
+                    for future in concurrent.futures.as_completed(futures):
+                        writer.writerow(future.result())
+                        pbar.update(1)
+                pbar.close()
 
 
 def validate_num_reads(value: str) -> int:
-    """
-    Validate the num_reads argument, which specifies the number of reads to process in each file.
-
-    Args:
-        value (str): The provided num_reads argument.
-
-    Returns:
-        int: The validated num_reads argument.
-
-    Raises:
-        argparse.ArgumentTypeError: If the num_reads argument is invalid.
-    """
     ivalue = int(value)
     if ivalue <= -2 or ivalue == 0:
         raise argparse.ArgumentTypeError(
-            "Please provide a number greater than 0 for the number of reads "
-            + "to analyze, or -1 to analyze all"
+            "Please provide a number greater than or equal to -1, where -1 indicates all reads."
         )
     return ivalue
 
 
 def validate_workers(value: str) -> int:
-    """
-    Validate the workers argument, which specifies the number of worker threads to use.
-
-    Args:
-        value (str): The provided workers argument.
-
-    Returns:
-        int: The validated workers argument.
-
-    Raises:
-        argparse.ArgumentTypeError: If the workers argument is invalid.
-    """
-    if value == "all":
+    if value.lower() == "all":
         return cpu_count()
     else:
         ivalue = int(value)
-        if ivalue <= 0:
+        if ivalue < 1:
             raise argparse.ArgumentTypeError(
-                "Number of workers must be greater than 0, or 'all' to use all CPU cores."
+                "Number of workers must be greater than 0."
             )
         return ivalue
 
-
-def validate_files(fastq_files: List[str], parser: argparse.ArgumentParser) -> None:
-    """
-    Validate the provided list of FASTQ files.
-
-    Args:
-        fastq_files (list): The provided list of FASTQ files.
-        parser (argparse.ArgumentParser): The argument parser.
-
-    Raises:
-        argparse.ArgumentTypeError: If a FASTQ file is invalid.
-    """
-    for file in fastq_files:
-        parsed = urlparse(file)
-        if bool(parsed.netloc):  # This is a URL
-            if not re.match(r".*\.(fastq|fq)(\.gz)?$", parsed.path, re.IGNORECASE):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-        else:  # This is a local file
-            if (
-                not file.lower().endswith(".fastq")
-                and not file.lower().endswith(".fastq.gz")
-                and not file.lower().endswith(".fq")
-                and not file.lower().endswith(".fq.gz")
-            ):
-                parser.error(
-                    f"The file {file} is not a fastq file based on file extension! "
-                    "Expected .fastq, .fastq.gz, .fq, or .fq.gz."
-                )
-            elif not os.path.exists(file):
-                parser.error(f"The file {file} does not exist!")
-
-
-def main(fastq_files: List[str], args: argparse.Namespace) -> None:
-    """
-    Main function that processes each FASTQ file and extracts metadata.
-
-    Args:
-        fastq_files (list): The provided list of FASTQ files.
-        args (argparse.Namespace): The parsed command-line arguments.
-    """
-    # Initialize CSV file for writing results
-    with open(args.output, "w", newline="") as csvfile:
-        fieldnames = ["filename", "predicted_tech", "metadata"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-
-        # Create a progress bar
-        logging.info(f"Initiate processing of fastq files")
-        pbar = tqdm(total=len(fastq_files), disable=not args.progress)
-
-        # Initialize a ProcessPoolExecutor
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=args.workers
-        ) as executor:
-            # Prepare futures for all fastq files
-            futures = {
-                executor.submit(process_file, filename, args.num_reads): filename
-                for filename in fastq_files
-            }
-
-            # Iterate over futures as they complete
-            for future in concurrent.futures.as_completed(futures):
-                # Get results from the future and write them to the CSV
-                writer.writerow(future.result())
-
-                # Update progress bar
-                pbar.update(1)
-
-        # Close the progress bar
-        pbar.close()
-
-
-if __name__ == "__main__":
-    # Initialize argument parser
+def cli():
     parser = argparse.ArgumentParser(
-        description="Predict the technology and extract metadata from fastq files."
+        description="Predict the technology and extract metadata from fastq, bam, and vcf files."
     )
-
-    # Define arguments
-    parser.add_argument("fastq_files", type=str, nargs="*", help="List of fastq files.")
     parser.add_argument(
-        "--file_list",
+        "file_list",
         type=argparse.FileType("r"),
-        help="A file containing a list of fastq files, one per line.",
+        help="A csv file containing a the columns `file_type`, `filename`,"
+        + " and `filepath`. The `filename` and `filepath` values are "
+        + "combined to generate the file url, assuming the file is on the "
+        + "NIH hosted GIAB ftp site.",
     )
     parser.add_argument(
         "--num_reads",
@@ -250,29 +152,29 @@ if __name__ == "__main__":
         default=1,
         help="Number of worker threads. Defaults to 1. Set to 'all' to use all CPU cores.",
     )
-    parser.add_argument(
-        "--output", type=str, default="output.csv", help="Output CSV file."
-    )
+    parser.add_argument("--output_dir", type=str, default=".", help="Output directory.")
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed messages."
     )
     parser.add_argument("--progress", action="store_true", help="Show progress bar.")
+    parser.add_argument(
+        "--version", 
+        action="version", 
+        version=f"%(prog)s {version.__version__}"
+    )
 
-    # Parse arguments
     args = parser.parse_args()
 
-    # Change level to DEBUG if verbose
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    # Handle fastq_files or file_list arguments
-    if args.file_list:
-        fastq_files = [line.strip() for line in args.file_list]
-    else:
-        fastq_files = [f.name for f in args.fastq_files]
+    file_info = []
+    reader = csv.DictReader(args.file_list)
+    for row in reader:
+        file_info.append(row)
 
-    # Check if fastq_files exist and are of correct format (.fastq)
-    validate_files(fastq_files, parser)
+    main(file_info, args.output_dir, args.num_reads, args.workers, args.progress)
 
-    # Execute main function
-    main(fastq_files, args)
+
+if __name__ == "__main__":
+    cli()

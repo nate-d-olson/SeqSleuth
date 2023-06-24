@@ -59,3 +59,26 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 * This script was developed with assistance from a conversation with OpenAI's ChatGPT.
+
+
+.
+├── __init__.py
+├── config.py: module with program configuation
+├── extractors
+│   ├── __init__.py
+│   ├── bam.py: module to extract metadata from bam headers
+│   ├── readnames.py: module to extract metadata from read names (depends on seqtech.py)
+│   ├── seqtech.py: module with classes for use in extracting metadata from read names
+│   └── vcf.py: module to extract metadata from vcf headers
+├── keywords
+│   ├── __init__.py
+│   ├── _centers.py: dictionary with keywords for centers contributing analyses and performing sequencing
+│   ├── _samps.py: dictionary with keywords for samples
+│   ├── _seqtech.py: dictionary with keywords for different sequencing technology
+│   ├── bam.py: metadata keywords for parsing bam filenames
+│   ├── fastq.py: metadata keywords for parsing fastq filenames
+│   └── vcf.py: metadata keywords for parsing vcf file names
+├── main.py: entry point for program, currently only for fastq functionality
+├── parser_filename.py: module for extracting metadata based on keywords from filenames/ paths
+├── predict_tech_from_fastq.py: fastq specific code to predict the type of sequencing data used to generate a fastq file, includes classes for reading and extracting read names from fastq files
+└── utils.py: utility functions used in multiple modules
