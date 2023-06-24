@@ -5,7 +5,6 @@ import json
 from typing import Any, Dict, List
 
 
-
 def setup_logging():
     """Set up basic logging configuration."""
     logging.basicConfig(
@@ -28,6 +27,7 @@ def valid_file(file_path: str) -> str:
     if not os.path.exists(file_path):
         raise argparse.ArgumentTypeError(f"The file {file_path} does not exist!")
     return file_path
+
 
 def write_json_to_file(data: List[Dict[str, Any]], filename: str) -> None:
     """Write the data to a JSON file.

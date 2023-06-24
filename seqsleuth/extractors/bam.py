@@ -5,21 +5,23 @@ import os
 
 import os
 
+
 class BAMFile:
     def __init__(self, filepath):
         self.filepath = filepath
         self.filename = os.path.basename(filepath)
-        self.filetype = 'bam'
+        self.filetype = "bam"
         self.extractor = BAMMetadataExtractor(filepath)
 
     def metadata(self):
         """Extract metadata from the BAM file."""
         return {
-            'filepath': self.filepath,
-            'filename': self.filename,
-            'filetype': self.filetype,
-            'metadata': self.extractor.extract_metadata(),
+            "filepath": self.filepath,
+            "filename": self.filename,
+            "filetype": self.filetype,
+            "metadata": self.extractor.extract_metadata(),
         }
+
 
 class BAMMetadataExtractor:
     def __init__(self, filepath):
@@ -32,7 +34,7 @@ class BAMMetadataExtractor:
             bamfile = pysam.AlignmentFile(self.filepath, "rb")
 
             # Get the header as a dictionary
-            metadata['header'] = bamfile.header.to_dict()
+            metadata["header"] = bamfile.header.to_dict()
 
             # Get the name of the first read
             first_read_name = next(bamfile).query_name
@@ -46,5 +48,7 @@ class BAMMetadataExtractor:
             return metadata
 
         except Exception as e:
-            logging.error(f"Failed to process BAM file at {self.filepath}. Error: {str(e)}")
+            logging.error(
+                f"Failed to process BAM file at {self.filepath}. Error: {str(e)}"
+            )
             return {"url": self.filepath, "error": str(e)}
