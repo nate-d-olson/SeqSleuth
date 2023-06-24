@@ -3,9 +3,6 @@ import pysam
 import os
 
 
-import os
-
-
 class BAMFile:
     def __init__(self, filepath):
         self.filepath = filepath

@@ -9,20 +9,16 @@ from multiprocessing import cpu_count
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
+from extractors.bam import BAMFile, BAMMetadataExtractor
+from extractors.filename import FilenameMetadataExtractor
 from extractors.readnames import ReadNameMetadataExtractor
-from predict_tech_from_fastq import (
-    FastqFile,
-    FastqRecordReader,
-    predict_sequencing_tech,
-)
-from tqdm import tqdm
-from parser_filename import FilenameMetadataExtractor
-from extractors.bam import BAMMetadataExtractor, BAMFile
-from extractors.vcf import VCFMetadataExtractor, VCFFile
-from keywords.fastq import metadata_keywords as fastq_keys
+from extractors.vcf import VCFFile, VCFMetadataExtractor
 from keywords.bam import metadata_keywords as bam_keys
+from keywords.fastq import metadata_keywords as fastq_keys
 from keywords.vcf import metadata_keywords as vcf_keys
-
+from predict_tech_from_fastq import (FastqFile, FastqRecordReader,
+                                     predict_sequencing_tech)
+from tqdm import tqdm
 
 logging.basicConfig(
     level=logging.INFO,
