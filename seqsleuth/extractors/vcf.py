@@ -1,6 +1,7 @@
-import pysam
 import logging
 import os
+
+import pysam
 
 
 class VCFMetadataExtractor:

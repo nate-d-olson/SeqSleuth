@@ -1,8 +1,8 @@
-import re
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Any, Type
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Type
 
 
 @dataclass

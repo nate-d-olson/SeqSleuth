@@ -9,15 +9,16 @@ from multiprocessing import cpu_count
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
-from extractors.bam import BAMFile, BAMMetadataExtractor
-from extractors.filename import FilenameMetadataExtractor
-from extractors.readnames import ReadNameMetadataExtractor
-from extractors.vcf import VCFFile, VCFMetadataExtractor
-from keywords.bam import metadata_keywords as bam_keys
-from keywords.fastq import metadata_keywords as fastq_keys
-from keywords.vcf import metadata_keywords as vcf_keys
-from predict_tech_from_fastq import (FastqFile, FastqRecordReader,
+from seqsleuth.extractors.bam import BAMFile, BAMMetadataExtractor
+from seqsleuth.extractors.filename import FilenameMetadataExtractor
+from seqsleuth.extractors.readnames import ReadNameMetadataExtractor
+from seqsleuth.extractors.vcf import VCFFile, VCFMetadataExtractor
+from seqsleuth.keywords.bam import metadata_keywords as bam_keys
+from seqsleuth.keywords.fastq import metadata_keywords as fastq_keys
+from seqsleuth.keywords.vcf import metadata_keywords as vcf_keys
+from seqsleuth.predict_tech_from_fastq import (FastqFile, FastqRecordReader,
                                      predict_sequencing_tech)
+from seqsleuth import version
 from tqdm import tqdm
 
 logging.basicConfig(
@@ -127,8 +128,7 @@ def validate_workers(value: str) -> int:
             )
         return ivalue
 
-
-if __name__ == "__main__":
+def cli():
     parser = argparse.ArgumentParser(
         description="Predict the technology and extract metadata from fastq, bam, and vcf files."
     )
@@ -157,6 +157,11 @@ if __name__ == "__main__":
         "--verbose", action="store_true", help="Print detailed messages."
     )
     parser.add_argument("--progress", action="store_true", help="Show progress bar.")
+    parser.add_argument(
+        "--version", 
+        action="version", 
+        version=f"%(prog)s {version.__version__}"
+    )
 
     args = parser.parse_args()
 
@@ -169,3 +174,7 @@ if __name__ == "__main__":
         file_info.append(row)
 
     main(file_info, args.output_dir, args.num_reads, args.workers, args.progress)
+
+
+if __name__ == "__main__":
+    cli()
