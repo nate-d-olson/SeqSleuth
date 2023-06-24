@@ -1,15 +1,18 @@
 # SeqSleuth
 
-SeqSleuth is a Python package developed for the Genome in a Bottle (GIAB) data portal. Its purpose is to collect and organize metadata from Fastq files for further usage and analysis. The primary goal of this project is to streamline and automate the data extraction and processing workflow for the GIAB project.
+SeqSleuth is a Python package developed for the Genome in a Bottle (GIAB) data portal. It's purpose is to collect and organize metadata from Fastq, bam, 
+and vcf files for further usage and analysis. 
+The primary goal of this project is to streamline and automate the metadata extraction and processing workflow for the GIAB project.
 
-While we are open to re-use or modification of the code by the community, please note that the package is currently being developed with the specific use-case of the GIAB project in mind. Therefore, functionality required for other projects may not be provided or may require adaptation of the existing code.
+While we are open to re-use or modification of the code by the community, 
+please note that the package is currently being developed with the specific use-case of the GIAB project in mind. 
+Therefore, functionality required for other projects may not be provided or may require adaptation of the existing code.
 
 ## Features
 
-* Predicts the sequencing technology used to generate a Fastq file
-* Extracts metadata from Fastq files
+* Extracts metadata from fastq, bam, and vcf files based on file url and file contents.
 * Outputs the extracted metadata to a CSV file for easy review and further processing
-* Supports multi-threading to speed up metadata extraction from multiple Fastq files
+* Supports multi-threading to speed up metadata extraction from large batches of files
 
 ## Getting Started
 
