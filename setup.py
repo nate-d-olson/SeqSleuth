@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="seqsleuth",
-    version="0.1.0",
+    version="0.2.0",
     description="A sequencing technology metadata extraction tool.",
     author="ND Olson",
     author_email="nolson@nist.gov",
