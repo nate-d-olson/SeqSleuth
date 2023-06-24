@@ -60,32 +60,43 @@ def process_file(file_type: str, filename: str, num_reads: int) -> Dict[str, Any
         )
 
 
-def main(
-    file_info: List[Dict[str, str]],
-    output_dir: str,
-    num_reads: int,
-    num_workers: int,
-    show_progress: bool,
-) -> None:
+def main(args: argparse.Namespace) -> None:
+    file_info = []
+    with open(args.file_list, "r") as file_list:
+        reader = csv.DictReader(file_list)
+        for row in reader:
+            file_info.append(row)
+
+    # Set up output directory
+    output_dir = args.output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         print(f"Warning: The directory {output_dir} did not exist and was created.")
 
+    # Set up logging level
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
+    # Process files based on file type
     for file_type in ["fastq", "bam", "vcf"]:
         file_info_of_type = [
-            info for info in file_info if info["filetype"].lower() == file_type
+            info for info in file_info if info["file_type"].lower() == file_type
         ]
         if file_info_of_type:
             with open(
-                os.path.join(output_dir, f"{file_type}_metadata.csv"), "w", newline=""
+                os.path.join(output_dir, f"{file_type}_metadata.csv"),
+                "w",
+                newline="",
             ) as csvfile:
                 fieldnames = ["filename", "metadata"]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                pbar = tqdm(total=len(file_info_of_type), disable=not show_progress)
+                pbar = tqdm(total=len(file_info_of_type), disable=not args.progress)
 
                 with concurrent.futures.ProcessPoolExecutor(
-                    max_workers=num_workers
+                    max_workers=args.workers
                 ) as executor:
                     futures = [
                         executor.submit(
@@ -97,7 +108,7 @@ def main(
                                 f"{info['filepath'].replace('/giab/ftp/', '')}/"
                                 f"{info['filename']}"
                             ),
-                            num_reads,
+                            args.num_reads,
                         )
                         for info in file_info_of_type
                     ]
@@ -106,7 +117,6 @@ def main(
                         writer.writerow(future.result())
                         pbar.update(1)
                 pbar.close()
-
 
 def validate_num_reads(value: str) -> int:
     ivalue = int(value)
@@ -128,13 +138,13 @@ def validate_workers(value: str) -> int:
             )
         return ivalue
 
-def cli():
+def create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Predict the technology and extract metadata from fastq, bam, and vcf files."
     )
     parser.add_argument(
         "file_list",
-        type=argparse.FileType("r"),
+        type=str,
         help="A csv file containing a the columns `file_type`, `filename`,"
         + " and `filepath`. The `filename` and `filepath` values are "
         + "combined to generate the file url, assuming the file is on the "
@@ -158,22 +168,17 @@ def cli():
     )
     parser.add_argument("--progress", action="store_true", help="Show progress bar.")
     parser.add_argument(
-        "--version", 
-        action="version", 
-        version=f"%(prog)s {version.__version__}"
+        "--version",
+        action="version",
+        version=f"%(prog)s {version.__version__}",
     )
+    return parser
 
-    args = parser.parse_args()
 
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    file_info = []
-    reader = csv.DictReader(args.file_list)
-    for row in reader:
-        file_info.append(row)
-
-    main(file_info, args.output_dir, args.num_reads, args.workers, args.progress)
+def cli():
+    arg_parser = create_arg_parser()
+    args = arg_parser.parse_args()
+    main(args)
 
 
 if __name__ == "__main__":
