@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+from seqsleuth import version
 
 setup(
     name="seqsleuth",
-    version="0.1.0",
+    version=version.__version__,
     description="A sequencing technology metadata extraction tool.",
     author="ND Olson",
     author_email="nolson@nist.gov",
@@ -11,7 +12,7 @@ setup(
     install_requires=["pysam"],
     entry_points={
         "console_scripts": [
-            "seqsleuth=seqsleuth.main:__main__",  # replace this with your actual module and function
+            "seqsleuth=seqsleuth.main:cli", 
         ],
     },
     classifiers=[
