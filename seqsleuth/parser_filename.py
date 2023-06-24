@@ -1,206 +1,103 @@
-"""
-Extracts metadata from URLs and writes the metadata to a CSV file.
-This script can be run from the command line and accepts either a single URL
-or a file containing a list of URLs as input.
-
-The script requires a JSON file with metadata keywords or a preset list name.
-
-Usage:
-    python extract_metadata.py -u URL -k keywords.json -c config.json -o output.csv
-    OR
-    python extract_metadata.py -f url_file.txt -k keywords.json -c config.json -o output.csv
-"""
-
-import argparse
-import json
-import logging
 import re
 import urllib.parse
-from importlib import import_module
-from typing import List, Dict
+from typing import Dict, List, Any
 
-import pandas as pd
-
-import config as cfg
-
-
-def parse_args() -> argparse.Namespace:
+class FilenameMetadataExtractor:
     """
-    Parse command line arguments.
-
-    Returns:
-        Parsed command line arguments.
+    This class is used to extract metadata from a filename
     """
-    parser = argparse.ArgumentParser(description="Extract metadata from URLs.")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-u', '--url', help="A single URL to process.")
-    group.add_argument('-f', '--url_file', help="A file containing a list of URLs.")
-    parser.add_argument('-o', '--output', required=True, help="Output file to write metadata to.")
-    parser.add_argument('-k', '--keywords', required=True, help="Keyword metadata JSON file or preset list name.")
-    parser.add_argument('-c', '--config', required=True, help="Configuration file.")
-    return parser.parse_args()
+
+    def __init__(self, metadata_keywords: Dict[str, Dict[str, List[str]]]):
+        """
+        Initialize the extractor with a mapping of keywords to categories and date patterns.
+
+        Args:
+            metadata_keywords: A dictionary containing a mapping of keywords to categories.
+            date_patterns: A list of date pattern strings.
+        """
+        assert isinstance(metadata_keywords, dict), "metadata_keywords must be a dictionary"
+        for category, keywords in metadata_keywords.items():
+            assert isinstance(keywords, dict), f"Each category in metadata_keywords must be a dictionary. Category '{category}' is not a dictionary. {keywords}"
 
 
-def setup_logger() -> None:
-    """
-    Set up the logger using the logging level from the configuration file.
-    """
-    numeric_level = getattr(logging, cfg.LOG_LEVEL.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {cfg.LOG_LEVEL}')
-    logging.basicConfig(level=numeric_level)
+        self.keyword_map = self.prepare_keywords(metadata_keywords)
+        self.date_patterns = [
+                                r'\d{8}',  # YYYYMMDD
+                                r'\d{4}-\d{2}-\d{2}',  # YYYY-MM-DD
+                                r'\d{2}\d{4}',  # MMDDYYYY
+                                r'\d{2}-\d{2}-\d{4}'  # MM-DD-YYYY
+                            ]
 
-def validate_url(url: str) -> bool:
-    """
-    Validate a URL if URL validation is enabled in the configuration file.
-    """
-    if cfg.VALIDATE_URL:
-        try:
-            result = urllib.parse.urlparse(url)
-            return all([result.scheme, result.netloc])
-        except ValueError:
-            return False
-    else:
-        return True
+    @staticmethod
+    def replace_special_characters_with_spaces(text: str) -> str:
+        """
+        Replace special characters with spaces.
 
-def load_urls(url: str) -> List[str]:
-    """
-    Load URLs from a text file.
+        Args:
+            text: Text to process.
 
-    Args:
-        url_file: Path to a text file containing URLs.
+        Returns:
+            Text with special characters replaced by spaces.
+        """
+        pattern = r'[^a-zA-Z0-9\s]'
+        processed_text = re.sub(pattern, ' ', text)
+        return processed_text
 
-    Returns:
-        A list of URLs.
-    """
-    with open(url, 'r') as file:
-        urls = file.read().splitlines()
-    return urls
+    @staticmethod
+    def prepare_keywords(metadata_keywords: Dict[str, Dict[str, List[str]]]) -> Dict[str, Any]:
+        """
+        Prepare a mapping of keywords to categories for quick lookup.
 
+        Args:
+            metadata_keywords: Dictionary of categories and associated keywords.
 
-def load_keywords(keywords: str) -> Dict:
-    """
-    Load keyword metadata from a JSON file or one of the preset lists.
+        Returns:
+            A dictionary with keywords as keys and categories as values.
+        """
+        keyword_map = {}
+        for category, keywords in metadata_keywords.items():
+            for key, values in keywords.items():
+                for value in values:
+                    keyword_map[value] = (category, key)
+        return keyword_map
 
-    Args:
-        keywords: Path to a JSON file or name of a preset list.
+    def extract_metadata(self, filename: str) -> dict:
+        """
+        Extract metadata from a filename.
 
-    Returns:
-        A dictionary containing the keyword metadata.
-    """
-    if keywords in cfg.KEYWORD_LISTS:
-        # Load from the preset lists
-        keywords_module = import_module(f"keywords.{keywords}")
-        return keywords_module.metadata_keywords
-    else:
-        # Load from a JSON file
-        with open(keywords, 'r') as file:
-            return json.load(file)
+        Args:
+            filename: A string containing the filename to process.
 
+        Returns:
+            A dictionary with extracted metadata.
+        """
+        assert isinstance(filename, str), "filename must be a string"
+        
+        metadata = {}
+        parsed_filename = urllib.parse.urlparse(filename).path.split('/')
+        # Extract metadata based on keywords
+        matches = []
+        for i, part in reversed(list(enumerate(parsed_filename))):  # start searching from the end
+            part = part.lower()
+            if part in self.keyword_map:
+                category, key = self.keyword_map[part]
+                matches.append((i, key))  # store both position and keyword
+                if category not in metadata:  # only update if category not already set
+                    metadata[category] = matches[0][1]  # select the keyword that appears last
 
-def replace_special_characters_with_spaces(text: str) -> str:
-    """
-    Replace special characters with spaces.
-
-    Args:
-        text: Text to process.
-
-    Returns:
-        Text with special characters replaced by spaces.
-    """
-    pattern = r'[^a-zA-Z0-9\s]'
-    processed_text = re.sub(pattern, ' ', text)
-    return processed_text
-
-def prepare_keywords(metadata_keywords: dict) -> dict:
-    """
-    Prepare a mapping of keywords to categories for quick lookup.
-    
-    Args:
-        metadata_keywords: Dictionary of categories and associated keywords.
-    
-    Returns:
-        A dictionary with keywords as keys and categories as values.
-    """
-    keyword_map = {}
-    for category, keywords in metadata_keywords.items():
-        for key, values in keywords.items():
-            for value in values:
-                keyword_map[value] = (category, key)
-    return keyword_map
-
-
-def extract_metadata_from_url(url: str, keyword_map: dict, date_patterns: list) -> dict:
-    """
-    Extract metadata from a URL.
-
-    Args:
-        url: A string containing the URL to process.
-        keyword_map: A dictionary containing a mapping of keywords to categories.
-        date_patterns: A list of date pattern strings.
-
-    Returns:
-        A dictionary with extracted metadata.
-    """
-    metadata = {}
-    parsed_url = urllib.parse.urlparse(url).path.split('/')
-    # Extract metadata based on keywords
-    matches = []
-    for i, part in reversed(list(enumerate(parsed_url))):  # start searching from the end
-        part = part.lower()
-        if part in keyword_map:
-            category, key = keyword_map[part]
-            matches.append((i, key))  # store both position and keyword
-            if category not in metadata:  # only update if category not already set
-                metadata[category] = matches[0][1]  # select the keyword that appears last
-
-    # Extract dates from the URL
-    for part in reversed(parsed_url):
-        if 'date' in metadata:
-            break
-        part = replace_special_characters_with_spaces(part)
-        for pattern in date_patterns:
-            match = re.search(pattern, part)
-            if match:
-                metadata['date'] = match.group()
+        # Extract dates from the filename
+        for part in reversed(parsed_filename):
+            if 'date' in metadata:
                 break
+            part = self.replace_special_characters_with_spaces(part)
+            for pattern in self.date_patterns:
+                match = re.search(pattern, part)
+                if match:
+                    metadata['date'] = match.group()
+                    break
 
-    metadata['url'] = url
-    return metadata
+        if not metadata:
+            print("No matching metadata found in filename.")
 
-
-def write_output(metadata: pd.DataFrame, output: str) -> None:
-    """
-    Write metadata to a CSV file.
-
-    Args:
-        metadata: pandas DataFrame containing the extracted metadata.
-        output: Path to the output CSV file.
-    """
-    metadata.to_csv(output, index=False)
-
-
-def main() -> None:
-    """
-    The main function that runs the script.
-    """
-    args = parse_args()
-    setup_logger()
-    urls = [args.url] if args.url else load_urls(args.url_file)
-    
-    # Load the metadata keywords from the specified source.
-    metadata_keywords = load_keywords(args.keywords)
-    keyword_map = prepare_keywords(metadata_keywords)
-    
-    # Extract metadata from the URLs
-    for url in urls:
-        if not validate_url(url):
-            logging.error(f'Invalid URL: {url}')
-            continue
-        try
-        metadata = extract_metadata_from_url(url, keyword_map)
-    write_output(metadata, args.output)
-
-
-if __name__ == "__main__":
-    main()
+        metadata['filename'] = filename
+        return metadata

@@ -2,7 +2,7 @@ import logging
 from typing import List
 
 from predict_tech_from_fastq import FastqFile
-from seqtech import SeqTechFactory
+from extractors.seqtech import SeqTechFactory
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

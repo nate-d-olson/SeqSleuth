@@ -2,7 +2,8 @@ trios =  {
         'AshkenazimTrio' : ['ashkenazimtrio'],
         'ChineseTrio' : ['chinesetrio'],
         'NA12878' : ['na12878'],
-    },  
+    }
+  
 sample_ids =  {
         'HG001': ['hg001', 'na12878', 'h001', 'h0001','gm12878'],
         'HG002': ['hg002', 'na24385', 'h002', 'h0002','gm24385'],
@@ -11,4 +12,4 @@ sample_ids =  {
         'HG005': ['hg005', 'na24631', 'h005', 'h0005','gm24631'],
         'HG006': ['hg006', 'na24694', 'h006', 'h0006','gm24694'],
         'HG007': ['hg007', 'na24695', 'h007', 'h0007','gm24695'],
-    },
+    }

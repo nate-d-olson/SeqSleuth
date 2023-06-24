@@ -12,11 +12,13 @@ from urllib.parse import urlparse
 from extractors.readnames import ReadNameMetadataExtractor
 from predict_tech_from_fastq import FastqFile, FastqRecordReader, predict_sequencing_tech
 from tqdm import tqdm
-from filename_metadata_extractor import FilenameMetadataExtractor
-from bam_metadata_extractor import BAMMetadataExtractor
-from vcf_metadata_extractor import VCFMetadataExtractor
-from bam_header_metadata_extractor import BAMHeaderMetadataExtractor
-from vcf_header_metadata_extractor import VCFHeaderMetadataExtractor
+from parser_filename import FilenameMetadataExtractor
+from extractors.bam import BAMMetadataExtractor, BAMFile
+from extractors.vcf import VCFMetadataExtractor, VCFFile
+from keywords.fastq import metadata_keywords as fastq_keys
+from keywords.bam import metadata_keywords as bam_keys
+from keywords.vcf import metadata_keywords as vcf_keys
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,25 +33,29 @@ def process_file(file_type: str, filename: str, num_reads: int) -> Dict[str, Any
             reader = FastqRecordReader(filename, num_reads)
             records = list(reader.read_records())
             file = FastqFile(records, filename)
-            extractor = ReadNameMetadataExtractor(file, filename)
+            predicted_tech = predict_sequencing_tech(filename)
+            extractor = ReadNameMetadataExtractor(file, filename, predicted_tech)
+            metadata = extractor.extract_metadata()
+            metadata_keywords = fastq_keys
         elif file_type == "bam":
-            file = BAMFile(filename) # Need to define BAMFile
-            extractor = BAMHeaderMetadataExtractor(file)
+            file = BAMFile(filename)
+            metadata = file.metadata()
+            metadata_keywords = bam_keys
         elif file_type == "vcf":
-            file = VCFFile(filename) # Need to define VCFFile
-            extractor = VCFHeaderMetadataExtractor(file)
-
-        metadata = extractor.extract_metadata()
-        filename_extractor = FilenameMetadataExtractor(filename)
-        filename_metadata = filename_extractor.extract_metadata()
+            file = VCFFile(filename)
+            metadata = file.metadata()
+            metadata_keywords = vcf_keys
         
+        filename_extractor = FilenameMetadataExtractor(metadata_keywords)
+        filename_metadata = filename_extractor.extract_metadata(filename)
         metadata.update(filename_metadata)
+
         return {"filename": filename, "metadata": json.dumps(metadata)}
 
     except Exception as e:
-        logging.error(f"Error processing file: {filename}. Error message: {str(e)}")
+        logging.error(f"Error processing file in `process_file`: {filename}. Error message: {str(e)}")
 
-def main(file_info: List[Dict[str, str]], output_dir: str, num_reads: int) -> None:
+def main(file_info: List[Dict[str, str]], output_dir: str, num_reads: int, num_workers: int, show_progress: bool) -> None:
     for file_type in ["fastq", "bam", "vcf"]:
         file_info_of_type = [info for info in file_info if info["filetype"].lower() == file_type]
         if file_info_of_type:
@@ -57,13 +63,18 @@ def main(file_info: List[Dict[str, str]], output_dir: str, num_reads: int) -> No
                 fieldnames = ["filename", "metadata"]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                pbar = tqdm(total=len(file_info_of_type), disable=not args.progress)
+                pbar = tqdm(total=len(file_info_of_type), disable=not show_progress)
 
-                with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
-                    futures = {
-                        executor.submit(process_file, file_type, info["filepath"], num_reads): info["filepath"]
+                with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+                    futures = [
+                        executor.submit(
+                            process_file,
+                            file_type,
+                            "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/" + info["filepath"].replace("/giab/ftp/", "")  + "/" + info["filename"],
+                            num_reads
+                        )
                         for info in file_info_of_type
-                    }
+                    ]
 
                     for future in concurrent.futures.as_completed(futures):
                         writer.writerow(future.result())
@@ -104,4 +115,4 @@ if __name__ == "__main__":
     for row in reader:
         file_info.append(row)
 
-    main(file_info, args.output_dir, args.num_reads)
+    main(file_info, args.output_dir, args.num_reads, args.workers, args.progress)
