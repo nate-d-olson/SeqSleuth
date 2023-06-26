@@ -144,7 +144,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "file_list",
-        type=str,
+        type=argparse.FileType("r"),
         help="A csv file containing a the columns `file_type`, `filename`,"
         + " and `filepath`. The `filename` and `filepath` values are "
         + "combined to generate the file url, assuming the file is on the "
