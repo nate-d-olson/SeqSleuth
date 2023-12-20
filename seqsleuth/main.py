@@ -65,10 +65,9 @@ def process_file(file_type: str, filename: str, num_reads: int) -> Dict[str, Any
 
 def main(args: argparse.Namespace) -> None:
     file_info = []
-    with open(args.file_list, "r") as file_list:
-        reader = csv.DictReader(file_list)
-        for row in reader:
-            file_info.append(row)
+    reader = csv.DictReader(args.file_list)
+    for row in reader:
+        file_info.append(row)
 
     # Set up output directory
     output_dir = args.output_dir
