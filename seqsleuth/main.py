@@ -84,7 +84,7 @@ def main(args: argparse.Namespace) -> None:
     # Process files based on file type
     for file_type in ["fastq", "bam", "vcf"]:
         file_info_of_type = [
-            info for info in file_info if info["file_type"].lower() == file_type
+            info for info in file_info if info["filetype"].lower() == file_type
         ]
         if file_info_of_type:
             with open(
@@ -149,7 +149,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "file_list",
         type=argparse.FileType("r"),
-        help="A csv file containing a the columns `file_type`, `filename`,"
+        help="A csv file containing a the columns `filetype`, `filename`,"
         + " and `filepath`. The `filename` and `filepath` values are "
         + "combined to generate the file url, assuming the file is on the "
         + "NIH hosted GIAB ftp site.",
