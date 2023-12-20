@@ -27,7 +27,7 @@ Clone this repository to your local machine and navigate to the project root dir
 Run the following command to install the necessary dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 ### Usage
@@ -37,16 +37,26 @@ The primary script for this package is `main.py`. It takes a list of Fastq files
 Basic usage is as follows:
 
 ```bash
-python main.py <FASTQ_files> [--chunk_size] [--output] [--verbose] [--workers]
+usage: seqsleuth [-h] [--num_reads NUM_READS] [--workers WORKERS] [--output_dir OUTPUT_DIR] [--verbose] [--progress] [--version] file_list
+
+Predict the technology and extract metadata from fastq, bam, and vcf files.
+
+positional arguments:
+  file_list             A csv file containing a the columns `file_type`, `filename`, and `filepath`. The `filename` and `filepath` values are combined to generate the file url, assuming the file is
+                        on the NIH hosted GIAB ftp site.
+
+options:
+  -h, --help            show this help message and exit
+  --num_reads NUM_READS
+                        Number of reads to process. Defaults to 5. Set to -1 to process all reads.
+  --workers WORKERS     Number of worker threads. Defaults to 1. Set to 'all' to use all CPU cores.
+  --output_dir OUTPUT_DIR
+                        Output directory.
+  --verbose             Print detailed messages.
+  --progress            Show progress bar.
+  --version             show program's version number and exit
 ```
 
-#### Arguments
-
-* `<FASTQ_files>`: List of Fastq files.
-* `--chunk_size`: Size of file chunk to read (in GB). Default is 1.
-* `--output`: Output CSV file. Default is 'output.csv'.
-* `--verbose`: If set, the script will print detailed messages.
-* `--workers`: Number of worker threads. Defaults to 1. Set to 'all' to use all CPU cores.
 
 ## Contributing
 
