@@ -4,11 +4,16 @@ import csv
 import argparse
 from seqsleuth import main
 
+
 # Define a fixture to provide a temporary file for testing
 @pytest.fixture
 def temporary_file(tmpdir):
     csv_data = [
-        {"file_type": "fastq", "filename": "file1.fastq", "filepath": "/path/to/file1.fastq"},
+        {
+            "file_type": "fastq",
+            "filename": "file1.fastq",
+            "filepath": "/path/to/file1.fastq",
+        },
         {"file_type": "bam", "filename": "file2.bam", "filepath": "/path/to/file2.bam"},
     ]
 

@@ -14,7 +14,7 @@ def sample_fastq_file(tmpdir):
     # Create a temporary FASTQ file for testing predict_sequencing_tech()
     fastq_file = tmpdir.join("sample.fastq")
     fastq_file.write(
-        '@read1\nAGCTCGTAGCTACGTA\n+\nHHHHHHHHHHHHHHHH\n@read2\nTCAGCTAGCTAGC\n+\nHHHHHHHHHHH'
+        "@read1\nAGCTCGTAGCTACGTA\n+\nHHHHHHHHHHHHHHHH\n@read2\nTCAGCTAGCTAGC\n+\nHHHHHHHHHHH"
     )
     return str(fastq_file)
 
@@ -56,7 +56,9 @@ def test_filename_metadata_extractor():
 def test_vcf_metadata_extractor(tmpdir):
     # Test VCFMetadataExtractor
     vcf_file = tmpdir.join("sample.vcf")
-    vcf_file.write("#fileformat=VCFv4.3\n##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">\n")
+    vcf_file.write(
+        '#fileformat=VCFv4.3\n##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n'
+    )
     extractor = VCFMetadataExtractor(str(vcf_file))
     metadata = extractor.extract_metadata()
     assert metadata == {
@@ -65,7 +67,12 @@ def test_vcf_metadata_extractor(tmpdir):
             "fileformat": "VCFv4.3",
             "samples": [],
             "INFO": [
-                {"ID": "DP", "Number": "1", "Type": "Integer", "Description": "Total Depth"}
+                {
+                    "ID": "DP",
+                    "Number": "1",
+                    "Type": "Integer",
+                    "Description": "Total Depth",
+                }
             ],
         },
     }
