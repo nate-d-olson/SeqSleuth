@@ -16,8 +16,11 @@ from seqsleuth.extractors.vcf import VCFFile, VCFMetadataExtractor
 from seqsleuth.keywords.bam import metadata_keywords as bam_keys
 from seqsleuth.keywords.fastq import metadata_keywords as fastq_keys
 from seqsleuth.keywords.vcf import metadata_keywords as vcf_keys
-from seqsleuth.predict_tech_from_fastq import (FastqFile, FastqRecordReader,
-                                     predict_sequencing_tech)
+from seqsleuth.predict_tech_from_fastq import (
+    FastqFile,
+    FastqRecordReader,
+    predict_sequencing_tech,
+)
 from seqsleuth import version
 from tqdm import tqdm
 
@@ -118,6 +121,7 @@ def main(args: argparse.Namespace) -> None:
                         pbar.update(1)
                 pbar.close()
 
+
 def validate_num_reads(value: str) -> int:
     ivalue = int(value)
     if ivalue <= -2 or ivalue == 0:
@@ -137,6 +141,7 @@ def validate_workers(value: str) -> int:
                 "Number of workers must be greater than 0."
             )
         return ivalue
+
 
 def create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(

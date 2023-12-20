@@ -8,6 +8,7 @@ from seqsleuth.extractors.seqtech import SeqTechFactory
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class ReadNameMetadataExtractor:
     def __init__(self, fastq_file: FastqFile, filename: str, predicted_tech: str):
         self.filename = filename
