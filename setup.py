@@ -12,19 +12,19 @@ setup(
     long_description_content_type="text/markdown",
     author="ND Olson",
     author_email="nolson@nist.gov",
-    platforms='any',
+    platforms="any",
     url="http://github.com/nate-d-olson/seqsleuth",
     project_urls={
-        'Documentation': 'https://github.com/nate-d-olson/seqsleuth/wiki',
-        'Source': 'https://github.com/nate-d-olson/seqsleuth',
-        'Tracker': 'https://github.com/nate-d-olson/seqsleuth/issues',
+        "Documentation": "https://github.com/nate-d-olson/seqsleuth/wiki",
+        "Source": "https://github.com/nate-d-olson/seqsleuth",
+        "Tracker": "https://github.com/nate-d-olson/seqsleuth/issues",
     },
     packages=find_packages(),
-    python_requires='>=3.7',
-    install_requires=["pysam"],
+    python_requires=">=3.7",
+    install_requires=["pysam", "tqdm"],
     entry_points={
         "console_scripts": [
-            "seqsleuth=seqsleuth.main:cli", 
+            "seqsleuth=seqsleuth.main:cli",
         ],
     },
     classifiers=[
