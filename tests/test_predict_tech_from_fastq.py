@@ -16,7 +16,7 @@ from seqsleuth.predict_tech_from_fastq import (
 
 def test_FastqRecordReader_reads_correct_number_of_records():
     # You'll need a FASTQ file with at least 10 records for this test
-    filename = "test_data/test_ill.fastq.gz"
+    filename = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/HG002_HiSeq300x_fastq/140528_D00360_0018_AH8VC6ADXX/Project_RM8391_RM8392/Sample_2B1/2B1_CAGATC_L001_R1_001.fastq.gz"
     reader = FastqRecordReader(filename, 4)
     records = list(reader.read_records())
     assert len(records) == 4
@@ -24,7 +24,7 @@ def test_FastqRecordReader_reads_correct_number_of_records():
 
 def test_FastqFile_gets_read_names():
     # You'll need a FASTQ file for this test
-    filename = "test_data/test_ont.fastq.gz"
+    filename = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/Ultralong_OxfordNanopore/combined_2018-08-10/combined_2018-08-10.fastq.gz"
     reader = FastqRecordReader(filename, 4)
     records = list(reader.read_records())
     fastq_file = FastqFile(records, filename)
@@ -33,7 +33,7 @@ def test_FastqFile_gets_read_names():
 
 def test_predict_sequencing_tech():
     # You'll need a FASTQ file named in a way that indicates the sequencing technology for this test
-    filename = "test_data/test_pacbio.fastq.gz"
+    filename = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/PacBio_CCS_10kb/m54315_180710_180741.Q20.fastq"
     tech = predict_sequencing_tech(filename)
     assert tech is not None
 
